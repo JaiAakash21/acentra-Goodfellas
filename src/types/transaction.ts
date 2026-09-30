@@ -10,6 +10,12 @@ export interface Transaction {
   merchant: string;
   deviceId: string;
   ipAddress: string;
+  riskScore?: number;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status?: 'PENDING_REVIEW' | 'REVIEWED' | 'CLEARED';
+  triggeredRuleCount?: number;
+  flagId?: string;
+  isFlagged?: boolean;
 }
 
 export interface TransactionWithFraud extends Transaction {
@@ -19,3 +25,4 @@ export interface TransactionWithFraud extends Transaction {
   triggeredRuleCount: number;
   flagId: string;
 }
+

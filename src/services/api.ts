@@ -55,6 +55,7 @@ export const mapBackendTransaction = (t: any): TransactionWithFraud => {
     triggeredRuleCount:
       t.rule_results?.filter((r: any) => r.triggered)?.length ?? (t.is_flagged ? 1 : 0),
     flagId,
+    isFlagged: Boolean(t.is_flagged),
   };
 };
 
@@ -168,6 +169,7 @@ export async function getFraudFlags(): Promise<FraudFlag[]> {
           status: r.status === 'PENDING' ? 'PENDING_REVIEW' : r.status,
           triggeredRuleCount: r.triggered_rules?.length ?? 0,
           createdAt: r.created_at,
+          accountId: r.transaction?.customer_id,
         }));
       }
     } catch (err) {
@@ -182,42 +184,80 @@ export async function getFraudFlags(): Promise<FraudFlag[]> {
  * 3. Fetch single transaction by ID
  * Backend: GET /api/transactions/{id}
  */
-export async function getTransaction(id: string): Promise<Transaction | null> {
+export async function getTransaction(id: string): Promise<TransactionWithFraud | Transaction | null> {
   if (!config.useMockData) {
     try {
-      const numId = id.replace(/^[A-Za-z]+-/, '');
-      const detail = await http.get<any>(`/api/transactions/${numId}`);
+      let detail: any = null;
+      const numMatch = id.match(/^(?:tx-)?(\d+)$/i);
+
+      if (numMatch) {
+        detail = await http.get<any>(`/api/transactions/${numMatch[1]}`);
+      } else {
+        // Query by customer_id or search query if string identifier provided
+        try {
+          const searchRes = await http.get<any>('/api/transactions', {
+            params: { customer_id: id, limit: 5 },
+          });
+          const items = Array.isArray(searchRes) ? searchRes : searchRes?.items || [];
+          const match = items.find((t: any) => t.customer_id === id) || items[0];
+          if (match && match.id) {
+            detail = await http.get<any>(`/api/transactions/${match.id}`);
+          }
+        } catch {
+          // fallback to search param
+          const searchRes = await http.get<any>('/api/transactions', {
+            params: { search: id, limit: 5 },
+          });
+          const items = Array.isArray(searchRes) ? searchRes : searchRes?.items || [];
+          if (items.length > 0 && items[0].id) {
+            detail = await http.get<any>(`/api/transactions/${items[0].id}`);
+          }
+        }
+      }
+
       if (detail) {
+        const canonicalId = String(detail.id);
+        const mappedTx = mapBackendTransaction(detail);
+
         // Cache rule results and audit trail for this transaction so investigation views have full fidelity
         if (detail.rule_results) {
-          ruleResultsState[id] = detail.rule_results.map((r: any, idx: number) => ({
-            id: `RES-${id}-${r.rule_id || idx}`,
-            transactionId: id,
+          const mappedRules: RuleResult[] = detail.rule_results.map((r: any, idx: number) => ({
+            id: `RES-${canonicalId}-${r.rule_id || idx}`,
+            transactionId: canonicalId,
             ruleId: r.rule_id,
             ruleName: r.rule_name || r.rule_id,
             triggered: Boolean(r.triggered),
             score: Number(r.score || 0),
             evidence: typeof r.evidence === 'string' ? { description: r.evidence } : r.evidence || {},
           }));
+          ruleResultsState[id] = mappedRules;
+          ruleResultsState[canonicalId] = mappedRules;
+          if (detail.customer_id) ruleResultsState[detail.customer_id] = mappedRules;
         }
+
         if (detail.audit_trail) {
-          auditLogsState[id] = detail.audit_trail.map((a: any) => ({
+          const mappedLogs: AuditEvent[] = detail.audit_trail.map((a: any) => ({
             id: String(a.id),
-            transactionId: id,
+            transactionId: canonicalId,
             type: a.action,
             message: `${a.actor}: ${a.action}${a.details ? ' ' + JSON.stringify(a.details) : ''}`,
             timestamp: a.created_at,
           }));
+          auditLogsState[id] = mappedLogs;
+          auditLogsState[canonicalId] = mappedLogs;
+          if (detail.customer_id) auditLogsState[detail.customer_id] = mappedLogs;
         }
-        return mapBackendTransaction(detail);
+
+        return mappedTx;
       }
     } catch (err) {
       console.warn('FastAPI backend unavailable — falling back to mock data:', err);
     }
   }
+
   await new Promise(r => setTimeout(r, 80));
-  const tx = transactionsState.find(t => t.id === id);
-  return tx || null;
+  const tx = transactionsState.find(t => t.id === id || t.accountId === id);
+  return tx ? enrichTransaction(tx) : null;
 }
 
 /**
@@ -229,20 +269,10 @@ export async function getRuleResults(transactionId: string): Promise<RuleResult[
   }
   if (!config.useMockData) {
     try {
-      const numId = transactionId.replace(/^[A-Za-z]+-/, '');
-      const detail = await http.get<any>(`/api/transactions/${numId}`);
-      if (detail?.rule_results) {
-        const results = detail.rule_results.map((r: any, idx: number) => ({
-          id: `RES-${transactionId}-${r.rule_id || idx}`,
-          transactionId,
-          ruleId: r.rule_id,
-          ruleName: r.rule_name || r.rule_id,
-          triggered: Boolean(r.triggered),
-          score: Number(r.score || 0),
-          evidence: typeof r.evidence === 'string' ? { description: r.evidence } : r.evidence || {},
-        }));
-        ruleResultsState[transactionId] = results;
-        return results;
+      const tx = await getTransaction(transactionId);
+      if (tx) {
+        if (ruleResultsState[transactionId]) return ruleResultsState[transactionId];
+        if (ruleResultsState[String(tx.id)]) return ruleResultsState[String(tx.id)];
       }
     } catch (err) {
       console.warn('FastAPI backend unavailable — falling back to mock data:', err);
@@ -273,18 +303,10 @@ export async function getAuditLogs(transactionId: string): Promise<AuditEvent[]>
   }
   if (!config.useMockData) {
     try {
-      const numId = transactionId.replace(/^[A-Za-z]+-/, '');
-      const detail = await http.get<any>(`/api/transactions/${numId}`);
-      if (detail?.audit_trail) {
-        const logs = detail.audit_trail.map((a: any) => ({
-          id: String(a.id),
-          transactionId,
-          type: a.action,
-          message: `${a.actor}: ${a.action}${a.details ? ' ' + JSON.stringify(a.details) : ''}`,
-          timestamp: a.created_at,
-        }));
-        auditLogsState[transactionId] = logs;
-        return logs;
+      const tx = await getTransaction(transactionId);
+      if (tx) {
+        if (auditLogsState[transactionId]) return auditLogsState[transactionId];
+        if (auditLogsState[String(tx.id)]) return auditLogsState[String(tx.id)];
       }
     } catch (err) {
       console.warn('FastAPI backend unavailable — falling back to mock data:', err);
@@ -1028,7 +1050,7 @@ export async function runSimulation(scenario: string) {
             evidence: { description: 'Matches habitual home geofence location.' },
           },
         ],
-        riskScore: 6,
+        riskScore: 0,
         riskLevel: 'LOW' as const,
         decision: 'AUTO-APPROVE',
         explanation:
@@ -1065,19 +1087,26 @@ export const apiService = {
       getAuditLogs(id),
     ]);
     if (!tx) return null;
-    let flag = flags.find(f => f.transactionId === id);
-    if (!flag) {
+    const txIdStr = String(tx.id);
+    let flag = flags.find(
+      f =>
+        f.transactionId === id ||
+        f.transactionId === txIdStr ||
+        (f as any).accountId === id ||
+        (f as any).accountId === tx.accountId
+    );
+    if (!flag && (tx.isFlagged || (tx.flagId && !tx.flagId.startsWith('FLAG-')))) {
       flag = {
-        id: `FLAG-${id}`,
-        transactionId: id,
-        riskScore: 10,
-        riskLevel: 'LOW',
-        status: 'CLEARED',
-        triggeredRuleCount: 0,
+        id: tx.flagId || `FLAG-${tx.id}`,
+        transactionId: txIdStr,
+        riskScore: tx.riskScore ?? 0,
+        riskLevel: tx.riskLevel ?? 'LOW',
+        status: tx.status ?? 'PENDING_REVIEW',
+        triggeredRuleCount: tx.triggeredRuleCount ?? 0,
         createdAt: tx.timestamp,
       };
     }
-    return { transaction: tx, flag, rules, auditLogs };
+    return { transaction: tx, flag: flag || null, rules, auditLogs };
   },
   async submitReviewDecision(
     transactionId: string,

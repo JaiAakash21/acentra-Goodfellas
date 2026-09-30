@@ -30,21 +30,31 @@ export function useInvestigation(transactionId?: string) {
         return;
       }
 
-      let foundFlag = flags.find(f => f.transactionId === transactionId);
-      if (!foundFlag) {
+      const txIdStr = String(tx.id);
+      let foundFlag = flags.find(
+        f =>
+          f.transactionId === transactionId ||
+          f.transactionId === txIdStr ||
+          (f as any).accountId === transactionId ||
+          (f as any).accountId === tx.accountId
+      );
+
+      // If the backend transaction explicitly has an active flag/case not yet in the reviews list:
+      if (!foundFlag && (tx.isFlagged || (tx.flagId && !tx.flagId.startsWith('FLAG-')))) {
         foundFlag = {
-          id: `FLAG-${transactionId}`,
-          transactionId,
-          riskScore: 10,
-          riskLevel: 'LOW',
-          status: 'CLEARED',
-          triggeredRuleCount: 0,
+          id: tx.flagId || `FLAG-${tx.id}`,
+          transactionId: txIdStr,
+          riskScore: tx.riskScore ?? 0,
+          riskLevel: tx.riskLevel ?? 'LOW',
+          status: tx.status ?? 'PENDING_REVIEW',
+          triggeredRuleCount: tx.triggeredRuleCount ?? 0,
           createdAt: tx.timestamp,
         };
       }
 
+      // Genuinely unflagged transactions have flag: null (never fabricated)
       setTransaction(tx);
-      setFlag(foundFlag);
+      setFlag(foundFlag || null);
       setRules(ruleList);
       setAuditLogs(logs);
     } catch (err: unknown) {
