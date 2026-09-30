@@ -1,0 +1,152 @@
+import type { RuleResult } from '../types/fraud';
+
+export const mockRuleResults: Record<string, RuleResult[]> = {
+  'TX-98421': [
+    {
+      id: 'RES-98421-1',
+      transactionId: 'TX-98421',
+      ruleId: 'RULE-VEL-01',
+      ruleName: 'HIGH TRANSACTION VELOCITY',
+      triggered: true,
+      score: 30,
+      evidence: {
+        description: '6 transactions detected within 10 minutes',
+        metric: 'Transaction Frequency',
+        expected: '<= 4 transactions / 10 min window',
+        actual: '6 transactions / 10 min window',
+        velocityData: {
+          windowMinutes: 10,
+          txCount: 6,
+          threshold: 4,
+        },
+      },
+    },
+    {
+      id: 'RES-98421-2',
+      transactionId: 'TX-98421',
+      ruleId: 'RULE-AMT-02',
+      ruleName: 'UNUSUAL TRANSACTION AMOUNT',
+      triggered: true,
+      score: 25,
+      evidence: {
+        description: '₹87,500 is 7.3x the customer\'s historical average',
+        metric: 'Historical Amount Multiplier',
+        expected: '<= 3.5x average threshold',
+        actual: '7.3x historical average',
+        historicalAverage: '₹12,000',
+        amountData: {
+          amount: 87500,
+          historicalAvg: 12000,
+          multiplier: 7.3,
+        },
+      },
+    },
+    {
+      id: 'RES-98421-3',
+      transactionId: 'TX-98421',
+      ruleId: 'RULE-GEO-03',
+      ruleName: 'IMPOSSIBLE TRAVEL',
+      triggered: true,
+      score: 30,
+      evidence: {
+        description: 'Previous location: Chennai | Current location: London | Elapsed time: 25 minutes | Estimated required speed: 5,420 km/h',
+        metric: 'Geographic Velocity',
+        expected: '<= 850 km/h commercial flight speed',
+        actual: '5,420 km/h required transit speed',
+        locations: {
+          prevLocation: 'Chennai',
+          currLocation: 'London',
+          timeDiffMinutes: 25,
+          speedKmh: 5420,
+        },
+      },
+    },
+  ],
+  'TX-98418': [
+    {
+      id: 'RES-98418-1',
+      transactionId: 'TX-98418',
+      ruleId: 'RULE-AMT-02',
+      ruleName: 'UNUSUAL TRANSACTION AMOUNT',
+      triggered: true,
+      score: 30,
+      evidence: {
+        description: '₹145,000 exceeds 10x standard retail category baseline',
+        metric: 'Amount Deviation',
+        historicalAverage: '₹14,500',
+        actual: '10.0x baseline',
+      },
+    },
+    {
+      id: 'RES-98418-2',
+      transactionId: 'TX-98418',
+      ruleId: 'RULE-DEV-04',
+      ruleName: 'UNRECOGNIZED DEVICE FINGERPRINT',
+      triggered: true,
+      score: 25,
+      evidence: {
+        description: 'New device DEV-S24U-9912 enrolled without biometric confirmation',
+        metric: 'Device Trust Score',
+        actual: 'Zero prior authorization history',
+      },
+    },
+    {
+      id: 'RES-98418-3',
+      transactionId: 'TX-98418',
+      ruleId: 'RULE-BEH-05',
+      ruleName: 'HIGH-RISK MERCHANT & MIDNIGHT BURST',
+      triggered: true,
+      score: 37,
+      evidence: {
+        description: 'Immediate bullion liquid asset liquidation at high-risk MCC',
+        metric: 'Merchant Category',
+        actual: 'Bullion / Precious metals',
+      },
+    },
+  ],
+  'TX-98401': [
+    {
+      id: 'RES-98401-1',
+      transactionId: 'TX-98401',
+      ruleId: 'RULE-GEO-03',
+      ruleName: 'IMPOSSIBLE TRAVEL',
+      triggered: true,
+      score: 35,
+      evidence: {
+        description: 'Previous location: Delhi | Current: San Francisco within 45 mins (Speed: 16,800 km/h)',
+        locations: {
+          prevLocation: 'New Delhi',
+          currLocation: 'San Francisco',
+          timeDiffMinutes: 45,
+          speedKmh: 16800,
+        },
+      },
+    },
+    {
+      id: 'RES-98401-2',
+      transactionId: 'TX-98401',
+      ruleId: 'RULE-BEH-05',
+      ruleName: 'CRYPTO OFF-RAMP HIGH VALUE',
+      triggered: true,
+      score: 30,
+      evidence: {
+        description: 'Direct transfer to unhosted wallet via exchange gateway',
+        metric: 'MCC Tier',
+        actual: 'Crypto Assets',
+      },
+    },
+    {
+      id: 'RES-98401-3',
+      transactionId: 'TX-98401',
+      ruleId: 'RULE-DEV-04',
+      ruleName: 'UNKNOWN USER AGENT HEADLESS',
+      triggered: true,
+      score: 23,
+      evidence: {
+        description: 'Browser client spoofing User-Agent headers with automation flags',
+        metric: 'Client Signature',
+        actual: 'Automated Headless Chromium',
+      },
+    },
+  ],
+};
