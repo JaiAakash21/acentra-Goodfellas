@@ -8,11 +8,13 @@ from app.db.session import get_db
 from app.models import AuditLog
 from app.schemas import AuditLogOut
 
-router = APIRouter(prefix="/audit-log", tags=["Audit"])
+router = APIRouter(tags=["Audit"])
 
 
-@router.get("", response_model=list[AuditLogOut])
+@router.get("/audit", response_model=list[AuditLogOut])
+@router.get("/audit-log", response_model=list[AuditLogOut])
 def list_audit_log(
+
     entity_type: Optional[str] = None,
     entity_id: Optional[str] = None,
     action: Optional[str] = None,

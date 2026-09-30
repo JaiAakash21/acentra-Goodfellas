@@ -1,7 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from backend.app.engine.models import Transaction, RuleResult
+try:
+    from backend.app.engine.models import Transaction, RuleResult
+except ImportError:
+    from app.engine.models import Transaction, RuleResult
+
 
 
 class BaseRule(ABC):

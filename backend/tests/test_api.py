@@ -125,3 +125,50 @@ def test_filters_and_validation(client):
     assert client.get("/api/transactions/99999").status_code == 404
     assert client.post("/api/transactions", json={"customer_id": "x", "amount": -5}).status_code == 422
     assert client.post("/api/transactions", json={"customer_id": "x", "amount": 5, "latitude": 12}).status_code == 422
+
+
+def test_deterministic_judge_scenarios(client):
+    # 1. Normal scenario
+    txs_normal = client.post("/api/demo/scenario/DEMO-NORMAL-001").json()
+    last_normal = txs_normal[-1]
+    assert last_normal["risk_level"] == "LOW"
+    assert last_normal["is_flagged"] is False
+
+    # 2. Velocity scenario
+    txs_velocity = client.post("/api/demo/scenario/DEMO-VELOCITY-001").json()
+    last_velocity = txs_velocity[-1]
+    detail_vel = client.get(f"/api/transactions/{last_velocity['id']}").json()
+    assert any(r["rule_id"] == "VEL001" and r["triggered"] for r in detail_vel["rule_results"])
+    assert detail_vel["risk_score"] == 30
+    assert detail_vel["risk_level"] == "MEDIUM"
+
+    # 3. Amount scenario
+    txs_amount = client.post("/api/demo/scenario/DEMO-AMOUNT-001").json()
+    last_amount = txs_amount[-1]
+    detail_amt = client.get(f"/api/transactions/{last_amount['id']}").json()
+    assert any(r["rule_id"] == "AMT001" and r["triggered"] for r in detail_amt["rule_results"])
+    assert detail_amt["risk_score"] == 25
+    assert detail_amt["risk_level"] == "MEDIUM"
+
+    # 4. Geography scenario
+    txs_geo = client.post("/api/demo/scenario/DEMO-GEO-001").json()
+    last_geo = txs_geo[-1]
+    detail_geo = client.get(f"/api/transactions/{last_geo['id']}").json()
+    assert any(r["rule_id"] == "GEO001" and r["triggered"] for r in detail_geo["rule_results"])
+    assert detail_geo["risk_score"] == 30
+    assert detail_geo["risk_level"] == "MEDIUM"
+
+    # 5. Combined Critical case: Velocity (30) + Amount (25) + Geography (30) = 85 CRITICAL
+    txs_crit = client.post("/api/demo/scenario/DEMO-CRITICAL-001").json()
+    last_crit = [t for t in txs_crit if t["city"] == "London"][0]
+    detail_crit = client.get(f"/api/transactions/{last_crit['id']}").json()
+    triggered = {x["rule_id"] for x in detail_crit["rule_results"] if x["triggered"]}
+    assert triggered == {"VEL001", "AMT001", "GEO001"}
+    assert detail_crit["risk_score"] == 85
+    assert detail_crit["risk_level"] == "CRITICAL"
+    assert detail_crit["review_status"] == "PENDING"
+    assert len(detail_crit["rule_results"]) >= 3
+    assert detail_crit["flag_id"] is not None
+    assert any(a["action"] == "FLAG_CREATED" for a in detail_crit["audit_trail"])
+    assert any(a["action"] == "NOTIFICATION_LOGGED" for a in detail_crit["audit_trail"])
+

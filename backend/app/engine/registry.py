@@ -1,6 +1,10 @@
 from typing import Dict, List
 
-from backend.app.rules.base import BaseRule
+try:
+    from backend.app.rules.base import BaseRule
+except ImportError:
+    from app.rules.base import BaseRule
+
 
 
 class RuleRegistry:

@@ -1,6 +1,9 @@
 from typing import List
 
-from backend.app.engine.models import RiskLevel, RuleResult
+try:
+    from backend.app.engine.models import RiskLevel, RuleResult
+except ImportError:
+    from app.engine.models import RiskLevel, RuleResult
 
 
 class RiskAggregator:
@@ -18,10 +21,11 @@ class RiskAggregator:
             level = RiskLevel.CRITICAL
         elif total_score >= 60:
             level = RiskLevel.HIGH
-        elif total_score >= 30:
+        elif total_score >= 25:
             level = RiskLevel.MEDIUM
         else:
             level = RiskLevel.LOW
+
             
         return total_score, level
 

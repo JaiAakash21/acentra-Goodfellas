@@ -35,9 +35,9 @@ class TestFraudEngine(unittest.TestCase):
         }
         
         config = {
-            "VELOCITY_001": {"threshold": 5, "weight": 30},
-            "AMOUNT_001": {"mode": "absolute", "threshold": 50000, "weight": 30},
-            "GEO_001": {"speed_limit_kmh": 900, "weight": 30}
+            "VEL001": {"threshold": 5, "weight": 30},
+            "AMT001": {"mode": "absolute", "threshold": 50000, "weight": 30},
+            "GEO001": {"speed_limit_kmh": 900, "weight": 30}
         }
         
         decision = self.engine.evaluate(self.tx, config, context)
@@ -52,7 +52,7 @@ class TestFraudEngine(unittest.TestCase):
 
     def test_engine_evaluate_disabled_rule(self):
         config = {
-            "AMOUNT_001": {"enabled": False}
+            "AMT001": {"enabled": False}
         }
         decision = self.engine.evaluate(self.tx, config, {})
         
@@ -60,3 +60,4 @@ class TestFraudEngine(unittest.TestCase):
         self.assertEqual(decision.risk_level, RiskLevel.LOW)
         self.assertEqual(decision.decision, "APPROVE")
         self.assertEqual(len(decision.rule_results), 2)
+

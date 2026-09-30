@@ -1,14 +1,18 @@
 from datetime import timedelta
 from typing import Any, Dict
 
-from backend.app.engine.models import Transaction, RuleResult
-from backend.app.rules.base import BaseRule
+try:
+    from backend.app.engine.models import Transaction, RuleResult
+    from backend.app.rules.base import BaseRule
+except ImportError:
+    from app.engine.models import Transaction, RuleResult
+    from app.rules.base import BaseRule
 
 
 class TransactionVelocityRule(BaseRule):
     @property
     def rule_id(self) -> str:
-        return "VELOCITY_001"
+        return "VEL001"
         
     @property
     def rule_name(self) -> str:
@@ -17,8 +21,8 @@ class TransactionVelocityRule(BaseRule):
     def evaluate(self, transaction: Transaction, context: Dict[str, Any], config: Dict[str, Any]) -> RuleResult:
         subject_field = config.get("subject", "account_id")
         window_minutes = config.get("window_minutes", 10)
-        threshold = config.get("threshold", 5)
-        weight = config.get("weight", 30)
+        threshold = config.get("threshold", config.get("max_transactions", 5))
+        weight = config.get("weight", config.get("score", 30))
 
         history = context.get("history", [])
 

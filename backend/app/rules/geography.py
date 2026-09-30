@@ -1,8 +1,12 @@
 import math
 from typing import Any, Dict
 
-from backend.app.engine.models import Transaction, RuleResult
-from backend.app.rules.base import BaseRule
+try:
+    from backend.app.engine.models import Transaction, RuleResult
+    from backend.app.rules.base import BaseRule
+except ImportError:
+    from app.engine.models import Transaction, RuleResult
+    from app.rules.base import BaseRule
 
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -19,17 +23,34 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 class ImpossibleGeographyRule(BaseRule):
     @property
     def rule_id(self) -> str:
-        return "GEO_001"
+        return "GEO001"
 
     @property
     def rule_name(self) -> str:
         return "Impossible Geographical Location"
 
     def evaluate(self, transaction: Transaction, context: Dict[str, Any], config: Dict[str, Any]) -> RuleResult:
-        weight = config.get("weight", 30)
-        speed_limit_kmh = config.get("speed_limit_kmh", 900)
+        weight = config.get("weight", config.get("score", 30))
+        speed_limit_kmh = config.get("speed_limit_kmh", config.get("max_speed_kmh", 900))
+        min_distance_km = config.get("min_distance_km", 1.0)
 
         previous_transaction = context.get("previous_transaction")
+        if not previous_transaction:
+            history = context.get("history", [])
+            valid_history = [
+                h for h in history
+                if getattr(h, "id", None) != transaction.id
+                and getattr(h, "latitude", None) is not None
+                and getattr(h, "longitude", None) is not None
+                and (getattr(h, "latitude", 0) != 0.0 or getattr(h, "longitude", 0) != 0.0)
+            ]
+            if valid_history:
+                valid_history.sort(key=lambda h: h.timestamp)
+                for h in reversed(valid_history):
+                    if h.timestamp <= transaction.timestamp:
+                        previous_transaction = h
+                        break
+
         if not previous_transaction:
             return RuleResult(
                 rule_id=self.rule_id,
@@ -39,6 +60,7 @@ class ImpossibleGeographyRule(BaseRule):
                 evidence="No previous transaction found in context to compare geographical distance.",
                 transaction_id=transaction.id
             )
+
 
         try:
             curr_lat, curr_lon = float(transaction.latitude), float(transaction.longitude)

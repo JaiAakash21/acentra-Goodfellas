@@ -1,12 +1,22 @@
 from typing import Any, Dict
 
-from backend.app.engine.models import Transaction, FraudDecision
-from backend.app.engine.registry import RuleRegistry
-from backend.app.engine.evaluator import GenericEvaluator
-from backend.app.engine.aggregator import RiskAggregator
-from backend.app.rules.velocity import TransactionVelocityRule
-from backend.app.rules.amount import UnusualAmountRule
-from backend.app.rules.geography import ImpossibleGeographyRule
+try:
+    from backend.app.engine.models import Transaction, FraudDecision
+    from backend.app.engine.registry import RuleRegistry
+    from backend.app.engine.evaluator import GenericEvaluator
+    from backend.app.engine.aggregator import RiskAggregator
+    from backend.app.rules.velocity import TransactionVelocityRule
+    from backend.app.rules.amount import UnusualAmountRule
+    from backend.app.rules.geography import ImpossibleGeographyRule
+except ImportError:
+    from app.engine.models import Transaction, FraudDecision
+    from app.engine.registry import RuleRegistry
+    from app.engine.evaluator import GenericEvaluator
+    from app.engine.aggregator import RiskAggregator
+    from app.rules.velocity import TransactionVelocityRule
+    from app.rules.amount import UnusualAmountRule
+    from app.rules.geography import ImpossibleGeographyRule
+
 
 
 class FraudEngine:

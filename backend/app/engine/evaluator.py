@@ -1,8 +1,13 @@
 import logging
 from typing import Any, Dict, List
 
-from backend.app.engine.models import Transaction, RuleResult
-from backend.app.rules.base import BaseRule
+try:
+    from backend.app.engine.models import Transaction, RuleResult
+    from backend.app.rules.base import BaseRule
+except ImportError:
+    from app.engine.models import Transaction, RuleResult
+    from app.rules.base import BaseRule
+
 
 logger = logging.getLogger(__name__)
 

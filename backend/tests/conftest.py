@@ -3,7 +3,8 @@ import os
 # Use a throw-away SQLite file so tests never touch your PostgreSQL data.
 os.environ["DATABASE_URL"] = "sqlite:///./test_fraudlens.db"
 os.environ["NOTIFICATION_PROVIDER"] = "mock"
-os.environ["USE_MOCK_ENGINE"] = "true"
+os.environ["USE_MOCK_ENGINE"] = "false"
+
 
 import pytest
 from fastapi.testclient import TestClient

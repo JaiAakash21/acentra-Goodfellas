@@ -94,15 +94,42 @@ def night(rng, customer, now):
 
 
 SCENARIOS = {
-    "velocity": velocity, "amount": amount, "geography": geography,
-    "combined": combined, "night": night,
+    "normal": normal,
+    "velocity": velocity,
+    "amount": amount,
+    "geography": geography,
+    "combined": combined,
+    "critical": combined,
+    "night": night,
 }
 
 
 def build_scenario(name: str, now: Optional[datetime] = None, customer: Optional[str] = None):
     now = now or datetime.now(timezone.utc)
-    customer = customer or f"CUST-{name[:3].upper()}-{uuid.uuid4().hex[:4].upper()}"
-    return SCENARIOS[name](random.Random(), customer, now)
+    key = name.lower()
+
+    if key in ("demo-normal-001", "normal"):
+        cust = customer or "DEMO-NORMAL-001"
+        return normal(random.Random(101), cust, now)
+    elif key in ("demo-velocity-001", "velocity"):
+        cust = customer or "DEMO-VELOCITY-001"
+        return velocity(random.Random(102), cust, now)
+    elif key in ("demo-amount-001", "amount"):
+        cust = customer or "DEMO-AMOUNT-001"
+        return amount(random.Random(103), cust, now)
+    elif key in ("demo-geo-001", "geography", "geo"):
+        cust = customer or "DEMO-GEO-001"
+        return geography(random.Random(104), cust, now)
+    elif key in ("demo-critical-001", "critical", "combined"):
+        cust = customer or "DEMO-CRITICAL-001"
+        return combined(random.Random(105), cust, now)
+    elif key == "night":
+        cust = customer or f"CUST-NIG-{uuid.uuid4().hex[:4].upper()}"
+        return night(random.Random(106), cust, now)
+    else:
+        cust = customer or f"CUST-{name[:3].upper()}-{uuid.uuid4().hex[:4].upper()}"
+        fn = SCENARIOS.get(key, normal)
+        return fn(random.Random(), cust, now)
 
 
 def _process_all(db: Session, payloads: list[TransactionCreate]) -> int:
@@ -134,11 +161,25 @@ def seed_demo_data(db: Session, reset: bool = False) -> dict:
 
     rng, now = random.Random(42), datetime.now(timezone.utc)
     payloads: list[TransactionCreate] = []
+
+    # 1. Deterministic Judge Demo Scenarios
+    for demo_code in [
+        "DEMO-NORMAL-001",
+        "DEMO-VELOCITY-001",
+        "DEMO-AMOUNT-001",
+        "DEMO-GEO-001",
+        "DEMO-CRITICAL-001",
+    ]:
+        payloads += build_scenario(demo_code, now)
+
+    # 2. General synthetic background transactions
     for i in range(1, 9):
         payloads += normal(rng, f"CUST-{1000 + i}", now)
     plan = {"velocity": 2, "amount": 2, "geography": 2, "combined": 2, "night": 1}
     for name, count in plan.items():
         for i in range(1, count + 1):
             payloads += SCENARIOS[name](rng, f"CUST-{name[:3].upper()}-{i}", now)
+
     total = _process_all(db, payloads)
     return {"seeded": True, "transactions_created": total}
+
