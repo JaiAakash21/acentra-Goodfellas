@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
-import { apiService } from '../services/api';
+import { runSimulation } from '../services/api';
 import { RiskBadge } from '../components/common/RiskBadge';
 import { RuleResultCard } from '../components/investigation/RuleResultCard';
+import { BackendNoticeBanner } from '../components/common/BackendNoticeBanner';
+import type { RuleResult, RiskLevel } from '../types/fraud';
+import type { Transaction } from '../types/transaction';
 import {
   Cpu,
   Play,
-  RotateCcw,
-  CheckCircle2,
-  AlertTriangle,
-  Layers,
-  ArrowRight,
-  ShieldAlert,
   Loader2,
-  Building,
-  MapPin,
-  Laptop,
-  Check,
 } from 'lucide-react';
 
 interface ScenarioPreset {
@@ -25,6 +18,22 @@ interface ScenarioPreset {
   description: string;
   expectedScore: string;
   expectedDecision: string;
+}
+
+interface SimulationOutput {
+  scenarioName: string;
+  transaction: Transaction;
+  breakdown: {
+    velocity: number;
+    amount: number;
+    location: number;
+    total: number;
+  };
+  ruleResults: RuleResult[];
+  riskScore: number;
+  riskLevel: RiskLevel;
+  decision: string;
+  explanation: string;
 }
 
 export const Simulator: React.FC = () => {
@@ -73,7 +82,7 @@ export const Simulator: React.FC = () => {
 
   const [selectedScenario, setSelectedScenario] = useState<string>('multi-signal-critical');
   const [simulationState, setSimulationState] = useState<'IDLE' | 'INGESTING' | 'EVALUATING' | 'SCORING' | 'COMPLETED'>('IDLE');
-  const [simulationResult, setSimulationResult] = useState<any>(null);
+  const [simulationResult, setSimulationResult] = useState<SimulationOutput | null>(null);
 
   const handleRunSimulation = async () => {
     setSimulationState('INGESTING');
@@ -82,23 +91,24 @@ export const Simulator: React.FC = () => {
     // Realistic step progression
     setTimeout(() => {
       setSimulationState('EVALUATING');
-    }, 600);
+    }, 500);
 
     setTimeout(() => {
       setSimulationState('SCORING');
-    }, 1200);
+    }, 1100);
 
     setTimeout(async () => {
-      const res = await apiService.simulateFraudScenario(selectedScenario);
+      const res = (await runSimulation(selectedScenario)) as SimulationOutput;
       setSimulationResult(res);
       setSimulationState('COMPLETED');
-    }, 1800);
+    }, 1700);
   };
-
-  const currentPreset = presets.find(p => p.id === selectedScenario)!;
 
   return (
     <div className="space-y-6">
+      {/* Backend Integration Notice */}
+      <BackendNoticeBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.06]">
         <div>
@@ -106,8 +116,8 @@ export const Simulator: React.FC = () => {
             <Cpu size={20} className="text-indigo-400" />
             <span>Fraud Engine Live Simulator</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Interactively simulate synthetic fraud payloads against the generic AST rule engine and inspect explainable signals.
+          <p className="text-xs text-slate-400 mt-1 font-mono">
+            FastAPI endpoint: <code className="text-indigo-400">POST /api/simulator/run</code> &bull; Real-time policy pipeline test
           </p>
         </div>
 
@@ -288,7 +298,7 @@ export const Simulator: React.FC = () => {
           {/* Simulated Ingested Transaction Details */}
           <div className="bg-[#111827] border border-white/[0.08] rounded-lg p-5">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono mb-3">
-              Simulated Ingestion Payload Attributes
+              Simulated Ingestion Payload Attributes (PostgreSQL Record)
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
               <div className="p-3 bg-[#0B0F17] rounded border border-white/[0.04]">
@@ -320,7 +330,7 @@ export const Simulator: React.FC = () => {
               Evaluated Rule Assertions & Explainable Evidence
             </h4>
             <div className="grid grid-cols-1 gap-3">
-              {simulationResult.ruleResults.map((r: any) => (
+              {simulationResult.ruleResults.map((r) => (
                 <RuleResultCard key={r.id} ruleResult={r} />
               ))}
             </div>
@@ -334,7 +344,7 @@ export const Simulator: React.FC = () => {
           <h3 className="text-sm font-bold font-mono text-slate-200">
             Engine Ready for Simulation
           </h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 mb-4">
+          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 mb-4 font-mono">
             Select an attack scenario above and click &quot;RUN FRAUD SIMULATION&quot; to execute real-time policy evaluation.
           </p>
           <button

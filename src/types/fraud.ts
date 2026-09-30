@@ -1,5 +1,5 @@
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type ReviewStatus = 'PENDING' | 'REVIEWED' | 'CLEARED';
+export type ReviewStatus = 'PENDING_REVIEW' | 'REVIEWED' | 'CLEARED';
 
 export interface FraudFlag {
   id: string;
@@ -18,35 +18,21 @@ export interface RuleResult {
   ruleName: string;
   triggered: boolean;
   score: number;
-  evidence: string;
-  details?: {
-    metric?: string;
-    expected?: string;
-    actual?: string;
-    historicalAverage?: string;
-    locations?: {
-      prevLocation: string;
-      currLocation: string;
-      timeDiffMinutes: number;
-      speedKmh: number;
-    };
-    velocityData?: {
-      windowMinutes: number;
-      txCount: number;
-      threshold: number;
-    };
-    amountData?: {
-      amount: number;
-      historicalAvg: number;
-      multiplier: number;
-    };
-  };
+  evidence: Record<string, unknown>;
 }
 
 export interface AuditEvent {
   id: string;
   transactionId: string;
-  type: 'RULE_EVALUATION' | 'SCORE_CALCULATION' | 'ALERT_GENERATED' | 'CASE_VIEWED' | 'DECISION_SUBMITTED' | 'SYSTEM';
+  type: string;
   message: string;
   timestamp: string;
+}
+
+export interface DashboardStats {
+  totalTransactions: number;
+  flaggedTransactions: number;
+  highRisk: number;
+  critical: number;
+  pendingReviews: number;
 }

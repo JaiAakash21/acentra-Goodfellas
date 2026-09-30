@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { apiService } from '../services/api';
+import React from 'react';
+import { useDashboardStats } from '../hooks/useDashboardStats';
 import { StatCard } from '../components/common/StatCard';
 import { TransactionTable } from '../components/tables/TransactionTable';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
-import type { TransactionWithFraud } from '../types/transaction';
+import { BackendNoticeBanner } from '../components/common/BackendNoticeBanner';
 import {
   CreditCard,
   Flag,
@@ -31,49 +31,21 @@ import {
 import { Link } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
-  const [data, setData] = useState<{
-    kpis: {
-      totalTransactions: number;
-      flagged: number;
-      highRisk: number;
-      critical: number;
-      pendingReview: number;
-    };
-    trendData: any[];
-    riskDistribution: any[];
-    recentHighRisk: TransactionWithFraud[];
-    recentAuditEvents: any[];
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchDashboard = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await apiService.getDashboardData();
-      setData(res);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load telemetry metrics');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+  const { data, loading, error, refetch } = useDashboardStats();
 
   if (loading) {
     return <LoadingState message="Fetching real-time fraud metrics & telemetry..." />;
   }
 
   if (error || !data) {
-    return <ErrorState message={error || 'Unable to connect to fraud decision engine'} onRetry={fetchDashboard} />;
+    return <ErrorState message={error || 'Unable to connect to fraud decision engine'} onRetry={refetch} />;
   }
 
   return (
     <div className="space-y-6">
+      {/* Backend Integration Notice Banner */}
+      <BackendNoticeBanner />
+
       {/* Page Title & Status Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.06]">
         <div>
@@ -81,8 +53,8 @@ export const Dashboard: React.FC = () => {
             <span>Executive Risk Overview</span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time fraud decision telemetry, behavioral velocity tracking, and high-risk case routing.
+          <p className="text-xs text-slate-400 mt-1 font-mono">
+            FastAPI real-time decision telemetry &bull; PostgreSQL audit logs &bull; Automated case routing
           </p>
         </div>
 
@@ -108,35 +80,35 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <StatCard
           title="Total Transactions"
-          value={data.kpis.totalTransactions}
+          value={data.totalTransactions}
           subtext="24-hour volume"
           icon={CreditCard}
           variant="default"
         />
         <StatCard
           title="Flagged Cases"
-          value={data.kpis.flagged}
+          value={data.flaggedTransactions}
           subtext="3.5% flag rate"
           icon={Flag}
           variant="warning"
         />
         <StatCard
           title="High Risk"
-          value={data.kpis.highRisk}
+          value={data.highRisk}
           subtext="Elevated watch"
           icon={AlertTriangle}
           variant="warning"
         />
         <StatCard
           title="Critical Cases"
-          value={data.kpis.critical}
+          value={data.critical}
           subtext="Immediate review"
           icon={AlertOctagon}
           variant="danger"
         />
         <StatCard
           title="Pending Reviews"
-          value={data.kpis.pendingReview}
+          value={data.pendingReviews}
           subtext="Action required"
           icon={Clock}
           variant="info"
@@ -247,7 +219,7 @@ export const Dashboard: React.FC = () => {
                   width={110}
                 />
                 <Tooltip
-                  formatter={(val: any) => [Number(val).toLocaleString(), 'Transactions']}
+                  formatter={(val: unknown) => [Number(val).toLocaleString(), 'Transactions']}
                   contentStyle={{
                     backgroundColor: '#0F172A',
                     borderColor: 'rgba(255,255,255,0.1)',
@@ -292,7 +264,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold font-mono text-slate-200 uppercase tracking-wider flex items-center gap-2">
               <Shield size={15} className="text-indigo-400" />
-              <span>System & Audit Trail</span>
+              <span>System & Audit Trail (PostgreSQL)</span>
             </h2>
             <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
               STREAM LIVE

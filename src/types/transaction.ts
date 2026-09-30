@@ -15,7 +15,7 @@ export interface Transaction {
 export interface TransactionWithFraud extends Transaction {
   riskScore: number;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  status: 'PENDING' | 'REVIEWED' | 'CLEARED';
+  status: 'PENDING_REVIEW' | 'REVIEWED' | 'CLEARED';
   triggeredRuleCount: number;
   flagId: string;
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Server, Database, Shield, Sliders, Check } from 'lucide-react';
-import { isFirebaseConfigured } from '../../services/firebase';
+import { X, Server, Database, Shield, Sliders, Check, BellRing } from 'lucide-react';
+import { config } from '../../config/env';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -8,14 +8,16 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [fastApiEndpoint, setFastApiEndpoint] = useState('http://localhost:8000/api/v1');
-  const [autoRefreshSecs, setAutoRefreshSecs] = useState('15');
+  const [fastApiEndpoint, setFastApiEndpoint] = useState(config.apiBaseUrl);
+  const [useMockMode, setUseMockMode] = useState(config.useMockData);
   const [saved, setSaved] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    config.apiBaseUrl = fastApiEndpoint;
+    config.useMockData = useMockMode;
     setSaved(true);
     setTimeout(() => {
       setSaved(false);
@@ -30,7 +32,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-[#0D131F]">
           <div className="flex items-center gap-2.5">
             <Sliders size={18} className="text-indigo-400" />
-            <h3 className="text-sm font-semibold text-white">Console & Integration Settings</h3>
+            <h3 className="text-sm font-semibold text-white font-mono">Backend Integration Switchboard</h3>
           </div>
           <button
             onClick={onClose}
@@ -46,69 +48,69 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           <div className="p-3 bg-indigo-950/20 border border-indigo-500/20 rounded-md text-xs text-indigo-300 flex items-start gap-2.5">
             <Shield size={16} className="text-indigo-400 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-indigo-200">Decoupled Architecture Ready</p>
+              <p className="font-semibold text-indigo-200 font-mono">FastAPI + PostgreSQL Architecture</p>
               <p className="text-indigo-300/80 mt-0.5 leading-relaxed">
-                The frontend communicates exclusively via the abstraction layer in <code className="font-mono text-[11px] text-white">src/services/api.ts</code>. Swapping mock data with live FastAPI endpoints requires zero UI component changes.
+                The frontend communicates exclusively via the abstraction layer in <code className="font-mono text-[11px] text-white">src/services/api.ts</code>. Connecting to the live FastAPI backend or running offline in mock demo mode requires zero changes to React pages.
               </p>
             </div>
           </div>
 
           {/* FastAPI Endpoint Config */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5 font-mono">
               <Server size={14} className="text-slate-400" />
-              <span>FastAPI Backend URL (Target Engine)</span>
+              <span>FastAPI Backend Base URL</span>
             </label>
             <input
               type="text"
               value={fastApiEndpoint}
               onChange={(e) => setFastApiEndpoint(e.target.value)}
               className="w-full bg-[#0B0F17] border border-white/[0.1] rounded px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
-              placeholder="http://localhost:8000/api/v1"
+              placeholder="http://localhost:8000"
             />
-            <p className="text-[11px] text-slate-400 mt-1">
-              Currently running in local mock simulation mode for frontend review.
+            <p className="text-[11px] text-slate-400 mt-1 font-mono">
+              Controlled by <code className="text-indigo-400">VITE_API_BASE_URL</code> environment variable.
             </p>
           </div>
 
-          {/* Firebase Status */}
-          <div className="pt-2 border-t border-white/[0.06]">
-            <label className="block text-xs font-medium text-slate-300 mb-2 flex items-center gap-1.5">
-              <Database size={14} className="text-slate-400" />
-              <span>Firebase Cloud Telemetry</span>
-            </label>
-            <div className="flex items-center justify-between p-3 bg-[#0B0F17] rounded border border-white/[0.08]">
-              <div>
-                <p className="text-xs font-medium text-slate-200">Firebase Initialization</p>
-                <p className="text-[11px] text-slate-400">
-                  {isFirebaseConfigured ? 'Connected to live Firebase project' : 'Running in offline fallback mode (Mock Safe)'}
-                </p>
-              </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase ${
-                isFirebaseConfigured
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-              }`}>
-                {isFirebaseConfigured ? 'Active' : 'Offline/Mock'}
-              </span>
+          {/* Data Source Mode Toggle */}
+          <div className="p-3 bg-[#0B0F17] rounded border border-white/[0.08] flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-slate-200 font-mono">Data Source Mode</p>
+              <p className="text-[11px] text-slate-400">
+                {useMockMode ? 'Using in-memory mock dataset' : 'Sending live HTTP calls to FastAPI'}
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setUseMockMode(!useMockMode)}
+              className={`px-3 py-1 rounded text-xs font-mono font-semibold transition-colors ${
+                useMockMode
+                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                  : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+              }`}
+            >
+              {useMockMode ? 'MOCK MODE' : 'LIVE API'}
+            </button>
           </div>
 
-          {/* Review Stream Refresh Interval */}
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Telemetry Polling Frequency
-            </label>
-            <select
-              value={autoRefreshSecs}
-              onChange={(e) => setAutoRefreshSecs(e.target.value)}
-              className="w-full bg-[#0B0F17] border border-white/[0.1] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-            >
-              <option value="5">Every 5 seconds (High Intensity)</option>
-              <option value="15">Every 15 seconds (Standard)</option>
-              <option value="60">Every 60 seconds (Conserve)</option>
-              <option value="0">Manual Refresh Only</option>
-            </select>
+          {/* PostgreSQL & AWS Notifications Specs */}
+          <div className="pt-2 border-t border-white/[0.06] space-y-2">
+            <div className="flex items-center justify-between p-2.5 bg-[#0B0F17] rounded border border-white/[0.05] text-xs font-mono">
+              <div className="flex items-center gap-2">
+                <Database size={14} className="text-indigo-400" />
+                <span className="text-slate-300">Persistence Store:</span>
+              </div>
+              <span className="text-slate-200 font-semibold">PostgreSQL (SQLAlchemy)</span>
+            </div>
+
+            <div className="flex items-center justify-between p-2.5 bg-[#0B0F17] rounded border border-white/[0.05] text-xs font-mono">
+              <div className="flex items-center gap-2">
+                <BellRing size={14} className="text-indigo-400" />
+                <span className="text-slate-300">Alert Dispatcher:</span>
+              </div>
+              <span className="text-slate-200 font-semibold">AWS SNS / SES Alerts</span>
+            </div>
           </div>
 
           {/* Actions */}

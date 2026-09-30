@@ -1,10 +1,8 @@
-import type { ReviewStatus } from './fraud';
-
 export interface Review {
   id: string;
   fraudFlagId: string;
   reviewer: string;
-  status: ReviewStatus;
+  status: 'REVIEWED' | 'CLEARED';
   comment: string;
   reviewedAt: string;
 }

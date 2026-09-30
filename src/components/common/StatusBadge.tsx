@@ -3,13 +3,14 @@ import type { ReviewStatus } from '../../types/fraud';
 import { Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 interface StatusBadgeProps {
-  status: ReviewStatus;
+  status: ReviewStatus | 'PENDING';
   size?: 'sm' | 'md';
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' }) => {
   const getStyles = () => {
     switch (status) {
+      case 'PENDING_REVIEW':
       case 'PENDING':
         return {
           container: 'bg-amber-500/10 text-amber-400 border-amber-500/30',

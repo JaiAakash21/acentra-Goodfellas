@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiService } from '../services/api';
-import type { Transaction } from '../types/transaction';
-import type { FraudFlag, RuleResult, AuditEvent, ReviewStatus } from '../types/fraud';
+import { useInvestigation } from '../hooks/useInvestigation';
 import { RiskScoreCard } from '../components/common/RiskScoreCard';
 import { RuleResultCard } from '../components/investigation/RuleResultCard';
 import { EvidenceSection } from '../components/investigation/EvidenceSection';
@@ -11,6 +9,7 @@ import { ReviewDecisionBox } from '../components/investigation/ReviewDecisionBox
 import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
+import { BackendNoticeBanner } from '../components/common/BackendNoticeBanner';
 import {
   ArrowLeft,
   Calendar,
@@ -26,50 +25,19 @@ import {
 
 export const Investigation: React.FC = () => {
   const { transactionId } = useParams<{ transactionId: string }>();
-
-  const [transaction, setTransaction] = useState<Transaction | null>(null);
-  const [flag, setFlag] = useState<FraudFlag | null>(null);
-  const [rules, setRules] = useState<RuleResult[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchDossier = async () => {
-    if (!transactionId) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await apiService.getTransactionDetails(transactionId);
-      if (!res) {
-        setError(`Transaction record ${transactionId} not found`);
-        return;
-      }
-      setTransaction(res.transaction);
-      setFlag(res.flag);
-      setRules(res.rules);
-      setAuditLogs(res.auditLogs);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to retrieve fraud investigation dossier');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDossier();
-  }, [transactionId]);
-
-  const handleSubmitDecision = async (status: ReviewStatus, comment: string) => {
-    if (!transactionId) return;
-    const res = await apiService.submitReviewDecision(transactionId, status, comment);
-    if (res.success) {
-      setFlag(res.flag);
-      setAuditLogs(prev => [...prev, res.auditEvent]);
-    }
-  };
+  const {
+    transaction,
+    flag,
+    rules,
+    auditLogs,
+    loading,
+    error,
+    refetch,
+    handleDecision,
+  } = useInvestigation(transactionId);
 
   if (loading) {
-    return <LoadingState message={`Decoupling dossier telemetry for ${transactionId}...`} />;
+    return <LoadingState message={`Retrieving case docket for ${transactionId} via API...`} />;
   }
 
   if (error || !transaction || !flag) {
@@ -85,7 +53,7 @@ export const Investigation: React.FC = () => {
         <ErrorState
           title="Case Not Found"
           message={error || `Could not find transaction ${transactionId}`}
-          onRetry={fetchDossier}
+          onRetry={refetch}
         />
       </div>
     );
@@ -108,6 +76,9 @@ export const Investigation: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Backend Integration Notice */}
+      <BackendNoticeBanner />
+
       {/* Top Breadcrumb & Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
@@ -141,7 +112,7 @@ export const Investigation: React.FC = () => {
       <div className="bg-[#111827] border border-white/[0.08] rounded-lg p-5">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono mb-4 flex items-center gap-1.5">
           <Wallet size={14} className="text-indigo-400" />
-          <span>Transaction Metadata Attributes</span>
+          <span>Transaction Metadata Attributes (PostgreSQL Record)</span>
         </h2>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-xs font-mono">
@@ -261,7 +232,9 @@ export const Investigation: React.FC = () => {
       {/* Reviewer Adjudication Decision Box */}
       <ReviewDecisionBox
         currentStatus={flag.status}
-        onSubmitDecision={handleSubmitDecision}
+        onSubmitDecision={async (status, comment) => {
+          await handleDecision(status, comment);
+        }}
       />
     </div>
   );

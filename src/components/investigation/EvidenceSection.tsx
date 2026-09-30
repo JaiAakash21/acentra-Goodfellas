@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Transaction } from '../../types/transaction';
 import type { RuleResult } from '../../types/fraud';
-import { Network, Laptop, Plane, MapPin, Gauge, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Laptop, Plane, MapPin, Gauge, ArrowRight } from 'lucide-react';
 
 interface EvidenceSectionProps {
   transaction: Transaction;
@@ -13,8 +13,12 @@ export const EvidenceSection: React.FC<EvidenceSectionProps> = ({
   ruleResults,
 }) => {
   const geoRule = ruleResults.find(r => r.ruleId.includes('GEO') || r.ruleName.includes('TRAVEL'));
-  const velocityRule = ruleResults.find(r => r.ruleId.includes('VEL'));
-  const amountRule = ruleResults.find(r => r.ruleId.includes('AMT'));
+  const geoLocations = (geoRule?.evidence?.locations as {
+    prevLocation?: string;
+    currLocation?: string;
+    timeDiffMinutes?: number;
+    speedKmh?: number;
+  }) || {};
 
   return (
     <div className="space-y-4">
@@ -102,7 +106,7 @@ export const EvidenceSection: React.FC<EvidenceSectionProps> = ({
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-mono">Previous Authorization (T - 25m)</p>
                 <p className="text-sm font-bold text-slate-200 font-mono">
-                  {geoRule?.details?.locations?.prevLocation || 'Chennai, India'}
+                  {geoLocations.prevLocation || 'Chennai, India'}
                 </p>
                 <p className="text-[11px] text-slate-400 font-mono">Lat: 13.0827, Lon: 80.2707</p>
               </div>
@@ -118,7 +122,7 @@ export const EvidenceSection: React.FC<EvidenceSectionProps> = ({
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-rose-500 rounded-full w-2 h-2" />
               </div>
               <p className="text-[10px] text-rose-400 font-mono">
-                Required transit speed: <strong>5,420 km/h</strong> (Max Commercial: 900 km/h)
+                Required transit speed: <strong>{geoLocations.speedKmh?.toLocaleString() || '5,420'} km/h</strong> (Max Commercial: 900 km/h)
               </p>
             </div>
 
@@ -127,7 +131,7 @@ export const EvidenceSection: React.FC<EvidenceSectionProps> = ({
               <div className="text-right">
                 <p className="text-[10px] text-slate-400 uppercase font-mono">Current Attempt (Now)</p>
                 <p className="text-sm font-bold text-slate-200 font-mono">
-                  {geoRule?.details?.locations?.currLocation || transaction.locationName}
+                  {geoLocations.currLocation || transaction.locationName}
                 </p>
                 <p className="text-[11px] text-slate-400 font-mono">Lat: {transaction.latitude}, Lon: {transaction.longitude}</p>
               </div>

@@ -9,8 +9,8 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'HIGH TRANSACTION VELOCITY',
       triggered: true,
       score: 30,
-      evidence: '6 transactions detected within 10 minutes across connected accounts',
-      details: {
+      evidence: {
+        description: '6 transactions detected within 10 minutes',
         metric: 'Transaction Frequency',
         expected: '<= 4 transactions / 10 min window',
         actual: '6 transactions / 10 min window',
@@ -18,8 +18,8 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
           windowMinutes: 10,
           txCount: 6,
           threshold: 4,
-        }
-      }
+        },
+      },
     },
     {
       id: 'RES-98421-2',
@@ -28,8 +28,8 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'UNUSUAL TRANSACTION AMOUNT',
       triggered: true,
       score: 25,
-      evidence: '₹87,500 is 7.3x the customer\'s historical average of ₹12,000',
-      details: {
+      evidence: {
+        description: '₹87,500 is 7.3x the customer\'s historical average',
         metric: 'Historical Amount Multiplier',
         expected: '<= 3.5x average threshold',
         actual: '7.3x historical average',
@@ -38,8 +38,8 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
           amount: 87500,
           historicalAvg: 12000,
           multiplier: 7.3,
-        }
-      }
+        },
+      },
     },
     {
       id: 'RES-98421-3',
@@ -48,19 +48,19 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'IMPOSSIBLE TRAVEL',
       triggered: true,
       score: 30,
-      evidence: 'Previous location: Chennai | Current location: London | Elapsed time: 25 minutes | Estimated required speed: 5,420 km/h',
-      details: {
+      evidence: {
+        description: 'Previous location: Chennai | Current location: London | Elapsed time: 25 minutes | Estimated required speed: 5,420 km/h',
         metric: 'Geographic Velocity',
         expected: '<= 850 km/h commercial flight speed',
         actual: '5,420 km/h required transit speed',
         locations: {
-          prevLocation: 'Chennai, India',
-          currLocation: 'London, United Kingdom',
+          prevLocation: 'Chennai',
+          currLocation: 'London',
           timeDiffMinutes: 25,
           speedKmh: 5420,
-        }
-      }
-    }
+        },
+      },
+    },
   ],
   'TX-98418': [
     {
@@ -70,12 +70,12 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'UNUSUAL TRANSACTION AMOUNT',
       triggered: true,
       score: 30,
-      evidence: '₹145,000 exceeds 10x standard retail category baseline',
-      details: {
+      evidence: {
+        description: '₹145,000 exceeds 10x standard retail category baseline',
         metric: 'Amount Deviation',
         historicalAverage: '₹14,500',
-        actual: '10.0x baseline'
-      }
+        actual: '10.0x baseline',
+      },
     },
     {
       id: 'RES-98418-2',
@@ -84,11 +84,11 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'UNRECOGNIZED DEVICE FINGERPRINT',
       triggered: true,
       score: 25,
-      evidence: 'New device DEV-S24U-9912 enrolled without biometric confirmation',
-      details: {
+      evidence: {
+        description: 'New device DEV-S24U-9912 enrolled without biometric confirmation',
         metric: 'Device Trust Score',
-        actual: 'Zero prior authorization history'
-      }
+        actual: 'Zero prior authorization history',
+      },
     },
     {
       id: 'RES-98418-3',
@@ -97,12 +97,12 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'HIGH-RISK MERCHANT & MIDNIGHT BURST',
       triggered: true,
       score: 37,
-      evidence: 'Immediate bullion liquid asset liquidation at high-risk MCC',
-      details: {
+      evidence: {
+        description: 'Immediate bullion liquid asset liquidation at high-risk MCC',
         metric: 'Merchant Category',
-        actual: 'Bullion / Precious metals'
-      }
-    }
+        actual: 'Bullion / Precious metals',
+      },
+    },
   ],
   'TX-98401': [
     {
@@ -112,15 +112,15 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'IMPOSSIBLE TRAVEL',
       triggered: true,
       score: 35,
-      evidence: 'Previous location: Delhi | Current: San Francisco within 45 mins (Speed: 16,800 km/h)',
-      details: {
+      evidence: {
+        description: 'Previous location: Delhi | Current: San Francisco within 45 mins (Speed: 16,800 km/h)',
         locations: {
-          prevLocation: 'New Delhi, India',
-          currLocation: 'San Francisco, USA',
+          prevLocation: 'New Delhi',
+          currLocation: 'San Francisco',
           timeDiffMinutes: 45,
           speedKmh: 16800,
-        }
-      }
+        },
+      },
     },
     {
       id: 'RES-98401-2',
@@ -129,11 +129,11 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'CRYPTO OFF-RAMP HIGH VALUE',
       triggered: true,
       score: 30,
-      evidence: 'Direct transfer to unhosted wallet via exchange gateway',
-      details: {
+      evidence: {
+        description: 'Direct transfer to unhosted wallet via exchange gateway',
         metric: 'MCC Tier',
-        actual: 'Crypto Assets'
-      }
+        actual: 'Crypto Assets',
+      },
     },
     {
       id: 'RES-98401-3',
@@ -142,11 +142,11 @@ export const mockRuleResults: Record<string, RuleResult[]> = {
       ruleName: 'UNKNOWN USER AGENT HEADLESS',
       triggered: true,
       score: 23,
-      evidence: 'Browser client spoofing User-Agent headers with automation flags',
-      details: {
+      evidence: {
+        description: 'Browser client spoofing User-Agent headers with automation flags',
         metric: 'Client Signature',
-        actual: 'Automated Headless Chromium'
-      }
-    }
-  ]
+        actual: 'Automated Headless Chromium',
+      },
+    },
+  ],
 };

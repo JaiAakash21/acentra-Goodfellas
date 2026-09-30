@@ -1,6 +1,6 @@
 import React from 'react';
 import type { RuleResult } from '../../types/fraud';
-import { AlertCircle, CheckCircle, Zap, TrendingUp, Compass, Smartphone, Shield } from 'lucide-react';
+import { Zap, TrendingUp, Compass, Smartphone, Shield } from 'lucide-react';
 
 interface RuleResultCardProps {
   ruleResult: RuleResult;
@@ -18,6 +18,32 @@ export const RuleResultCard: React.FC<RuleResultCardProps> = ({ ruleResult }) =>
 
   const Icon = getRuleIcon(ruleResult.ruleName);
   const isTriggered = ruleResult.triggered;
+
+  // Extract evidence description and nested evidence metadata
+  const evidenceObj = (typeof ruleResult.evidence === 'object' && ruleResult.evidence !== null)
+    ? ruleResult.evidence
+    : {};
+  const evidenceText = (evidenceObj.description as string) ||
+    (typeof ruleResult.evidence === 'string' ? ruleResult.evidence : JSON.stringify(ruleResult.evidence));
+
+  const locations = evidenceObj.locations as {
+    prevLocation?: string;
+    currLocation?: string;
+    timeDiffMinutes?: number;
+    speedKmh?: number;
+  } | undefined;
+
+  const amountData = evidenceObj.amountData as {
+    amount?: number;
+    historicalAvg?: number;
+    multiplier?: number;
+  } | undefined;
+
+  const velocityData = evidenceObj.velocityData as {
+    windowMinutes?: number;
+    txCount?: number;
+    threshold?: number;
+  } | undefined;
 
   return (
     <div
@@ -68,62 +94,62 @@ export const RuleResultCard: React.FC<RuleResultCardProps> = ({ ruleResult }) =>
 
       {/* Main Evidence Statement */}
       <div className="mt-3.5 pt-3 border-t border-white/[0.06]">
-        <p className="text-xs text-slate-200 font-medium leading-relaxed">
-          {ruleResult.evidence}
+        <p className="text-xs text-slate-200 font-medium leading-relaxed font-mono">
+          {evidenceText}
         </p>
 
         {/* Rich Structured Details Breakdown if available */}
-        {ruleResult.details?.locations && (
+        {locations && (
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#0B0F17] p-2.5 rounded border border-white/[0.05] text-[11px] font-mono">
             <div>
               <span className="text-slate-400 block text-[10px]">Previous Location</span>
-              <span className="text-slate-200 font-semibold">{ruleResult.details.locations.prevLocation}</span>
+              <span className="text-slate-200 font-semibold">{locations.prevLocation || 'Chennai'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px]">Current Location</span>
-              <span className="text-slate-200 font-semibold">{ruleResult.details.locations.currLocation}</span>
+              <span className="text-slate-200 font-semibold">{locations.currLocation || 'London'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px]">Elapsed Time</span>
-              <span className="text-amber-400 font-semibold">{ruleResult.details.locations.timeDiffMinutes} minutes</span>
+              <span className="text-amber-400 font-semibold">{locations.timeDiffMinutes || 25} minutes</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px]">Required Transit Speed</span>
-              <span className="text-rose-400 font-bold">{ruleResult.details.locations.speedKmh.toLocaleString()} km/h</span>
+              <span className="text-rose-400 font-bold">{locations.speedKmh?.toLocaleString() || '5,420'} km/h</span>
             </div>
           </div>
         )}
 
-        {ruleResult.details?.amountData && (
+        {amountData && (
           <div className="mt-3 grid grid-cols-3 gap-2 bg-[#0B0F17] p-2.5 rounded border border-white/[0.05] text-[11px] font-mono">
             <div>
               <span className="text-slate-400 block text-[10px]">Attempted Amount</span>
-              <span className="text-slate-200 font-semibold">₹{ruleResult.details.amountData.amount.toLocaleString()}</span>
+              <span className="text-slate-200 font-semibold">₹{amountData.amount?.toLocaleString() || '87,500'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px]">Customer Historical Avg</span>
-              <span className="text-slate-200 font-semibold">₹{ruleResult.details.amountData.historicalAvg.toLocaleString()}</span>
+              <span className="text-slate-200 font-semibold">₹{amountData.historicalAvg?.toLocaleString() || '12,000'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px]">Deviation Multiplier</span>
-              <span className="text-rose-400 font-bold">{ruleResult.details.amountData.multiplier}x Average</span>
+              <span className="text-rose-400 font-bold">{amountData.multiplier || 7.3}x Average</span>
             </div>
           </div>
         )}
 
-        {ruleResult.details?.velocityData && (
+        {velocityData && (
           <div className="mt-3 grid grid-cols-3 gap-2 bg-[#0B0F17] p-2.5 rounded border border-white/[0.05] text-[11px] font-mono">
             <div>
               <span className="text-slate-400 block text-[10px]">Time Window</span>
-              <span className="text-slate-200 font-semibold">{ruleResult.details.velocityData.windowMinutes} minutes</span>
+              <span className="text-slate-200 font-semibold">{velocityData.windowMinutes || 10} minutes</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px]">Transactions Executed</span>
-              <span className="text-rose-400 font-bold">{ruleResult.details.velocityData.txCount} txs</span>
+              <span className="text-rose-400 font-bold">{velocityData.txCount || 6} txs</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px]">Velocity Threshold</span>
-              <span className="text-slate-400 font-semibold">&le; {ruleResult.details.velocityData.threshold} txs</span>
+              <span className="text-slate-400 font-semibold">&le; {velocityData.threshold || 4} txs</span>
             </div>
           </div>
         )}

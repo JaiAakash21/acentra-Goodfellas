@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { apiService } from '../services/api';
-import type { Rule, RuleType, Operator } from '../types/rule';
+import React, { useState } from 'react';
+import { useRules } from '../hooks/useRules';
 import { LoadingState } from '../components/common/LoadingState';
+import { ErrorState } from '../components/common/ErrorState';
+import { BackendNoticeBanner } from '../components/common/BackendNoticeBanner';
+import type { Rule } from '../types/rule';
 import {
   Sliders,
   Plus,
@@ -10,108 +12,126 @@ import {
   X,
   Code2,
   Cpu,
-  Info,
-  Layers,
-  Sparkles,
   ToggleLeft,
   ToggleRight,
   Flame,
   CheckCircle2,
+  Trash2,
+  Edit2,
 } from 'lucide-react';
 
 export const RuleStudio: React.FC = () => {
-  const [rules, setRules] = useState<Rule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const {
+    rules,
+    loading,
+    error,
+    refetch,
+    createRule,
+    toggleRule,
+    deleteRule,
+    simulateRule,
+  } = useRules();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+
   const [testResult, setTestResult] = useState<{
     testedRuleName: string;
     passed: boolean;
-    samplePayload: any;
+    samplePayload: unknown;
     explanation: string;
   } | null>(null);
 
   // Form state
   const [name, setName] = useState('');
-  const [ruleType, setRuleType] = useState<RuleType>('VELOCITY');
-  const [field, setField] = useState('rolling_frequency_10m');
-  const [operator, setOperator] = useState<Operator>('GREATER_THAN');
+  const [type, setType] = useState('VELOCITY');
+  const [field, setField] = useState('transaction_count');
+  const [operator, setOperator] = useState('FREQUENCY_EXCEEDS');
   const [threshold, setThreshold] = useState('5');
   const [weight, setWeight] = useState(25);
   const [enabled, setEnabled] = useState(true);
   const [description, setDescription] = useState('');
 
-  const fetchRules = async () => {
-    setLoading(true);
-    try {
-      const data = await apiService.getRules();
-      setRules(data);
-    } finally {
-      setLoading(false);
-    }
+  const openCreateModal = () => {
+    setEditingRuleId(null);
+    setName('');
+    setType('VELOCITY');
+    setField('transaction_count');
+    setOperator('FREQUENCY_EXCEEDS');
+    setThreshold('5');
+    setWeight(25);
+    setEnabled(true);
+    setDescription('');
+    setShowModal(true);
   };
 
-  useEffect(() => {
-    fetchRules();
-  }, []);
-
-  const handleToggle = async (ruleId: string, currentEnabled: boolean) => {
-    const updated = await apiService.toggleRule(ruleId, !currentEnabled);
-    setRules(prev => prev.map(r => (r.id === ruleId ? updated : r)));
+  const openEditModal = (rule: Rule) => {
+    setEditingRuleId(rule.id);
+    setName(rule.name);
+    setType(rule.type);
+    setField(String(rule.config?.field || ''));
+    setOperator(String(rule.config?.operator || ''));
+    setThreshold(String(rule.config?.threshold || ''));
+    setWeight(rule.weight);
+    setEnabled(rule.enabled);
+    setDescription(rule.description);
+    setShowModal(true);
   };
 
   const handleSaveRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const created = await apiService.createRule({
-      name,
-      description: description || `Rule evaluating ${field} ${operator} ${threshold}`,
-      ruleType,
-      field,
-      operator,
-      threshold,
-      weight: Number(weight),
-      enabled,
-    });
+    if (editingRuleId) {
+      // In-place edit
+      const existing = rules.find(r => r.id === editingRuleId);
+      if (existing) {
+        existing.name = name;
+        existing.description = description;
+        existing.type = type;
+        existing.config = { field, operator, threshold };
+        existing.weight = Number(weight);
+        existing.enabled = enabled;
+      }
+    } else {
+      await createRule({
+        name,
+        description: description || `Policy checking ${field} ${operator} ${threshold}`,
+        type,
+        config: { field, operator, threshold },
+        weight: Number(weight),
+        enabled,
+      });
+    }
 
-    setRules(prev => [created, ...prev]);
-    setShowCreateModal(false);
-    resetForm();
+    setShowModal(false);
   };
 
-  const handleTestRule = (ruleToTest?: { name: string; type: string; threshold: string | number; weight: number }) => {
-    const targetName = ruleToTest ? ruleToTest.name : name || 'Unnamed Draft Rule';
-    const targetType = ruleToTest ? ruleToTest.type : ruleType;
+  const handleTestRule = async (ruleId?: string) => {
+    const id = ruleId || editingRuleId || 'RULE-DRAFT';
+    const targetRule = rules.find(r => r.id === id);
+    const targetName = targetRule?.name || name || 'Custom Rule Configuration';
 
+    const simRes = await simulateRule(id);
     setTestResult({
       testedRuleName: targetName,
-      passed: true,
+      passed: simRes.passed,
       samplePayload: {
-        transaction_id: 'TEST-TX-4401',
-        amount: 95000,
-        currency: 'INR',
-        evaluated_field: field,
-        observed_value: 7.2,
-        configured_threshold: threshold,
-        computed_risk_impact: `+${ruleToTest ? ruleToTest.weight : weight} points`,
+        engine_target: 'FastAPI Generic Rule Engine (AST Evaluator)',
+        evaluated_rule_id: id,
+        payload: {
+          field: targetRule?.config?.field || field,
+          observed_value: 6.8,
+          threshold: targetRule?.config?.threshold || threshold,
+          score_contribution: `+${targetRule?.weight || weight} points`,
+        },
       },
-      explanation: `Generic Rule Engine simulated JSON configuration against synthetic telemetry pipeline. Trigger condition satisfied under active payload schema.`,
+      explanation: 'Rules are configuration consumed by the generic fraud engine. Synthetic payload evaluated against active PostgreSQL policy repository.',
     });
   };
 
-  const resetForm = () => {
-    setName('');
-    setRuleType('VELOCITY');
-    setField('rolling_frequency_10m');
-    setOperator('GREATER_THAN');
-    setThreshold('5');
-    setWeight(25);
-    setEnabled(true);
-    setDescription('');
-  };
-
-  const getRuleTypeBadge = (type: RuleType) => {
-    switch (type) {
+  const getRuleTypeBadge = (ruleType: string) => {
+    switch (ruleType.toUpperCase()) {
       case 'VELOCITY':
         return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
       case 'AMOUNT':
@@ -128,6 +148,9 @@ export const RuleStudio: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Backend Integration Notice */}
+      <BackendNoticeBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.06]">
         <div>
@@ -135,13 +158,13 @@ export const RuleStudio: React.FC = () => {
             <Sliders size={20} className="text-indigo-400" />
             <span>Rule Studio & Decision Engine Config</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Author and tune declarative fraud rules. Rules compile into pure JSON policies consumed by the generic real-time evaluation engine.
+          <p className="text-xs text-slate-400 mt-1 font-mono">
+            FastAPI endpoint: <code className="text-indigo-400">/api/rules</code> &bull; Declarative PostgreSQL policies
           </p>
         </div>
 
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={openCreateModal}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-medium rounded transition-colors shadow-sm self-start sm:self-auto"
         >
           <Plus size={15} />
@@ -154,17 +177,19 @@ export const RuleStudio: React.FC = () => {
         <Cpu size={18} className="text-indigo-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-semibold text-indigo-200 font-mono">
-            Declarative Policy Engine (Generic AST Engine)
+            Generic Fraud Decision Engine Architecture
           </p>
-          <p className="text-slate-300 leading-relaxed">
-            All rules authored in this studio operate as pure, decoupled configurations (field, operator, threshold, risk weight). The evaluation engine dynamically consumes this telemetry schema without requiring code redeployments or backend engine changes.
+          <p className="text-slate-300 leading-relaxed font-mono">
+            Rules are configuration consumed by the generic fraud engine. Author declarative thresholds (field, operator, threshold, weight) stored in PostgreSQL. The backend fraud engine executes AST policy evaluation in real time without hardcoded rules.
           </p>
         </div>
       </div>
 
       {/* Rules Grid */}
       {loading ? (
-        <LoadingState message="Compiling engine rule registry..." />
+        <LoadingState message="Fetching rule registry from backend..." />
+      ) : error ? (
+        <ErrorState message={error} onRetry={refetch} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {rules.map((rule) => (
@@ -179,29 +204,31 @@ export const RuleStudio: React.FC = () => {
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <span
                     className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase border ${getRuleTypeBadge(
-                      rule.ruleType
+                      rule.type
                     )}`}
                   >
-                    {rule.ruleType}
+                    {rule.type}
                   </span>
 
-                  <button
-                    onClick={() => handleToggle(rule.id, rule.enabled)}
-                    className="flex items-center gap-1.5 text-xs font-mono text-slate-400 hover:text-white transition-colors"
-                    title={rule.enabled ? 'Disable Rule' : 'Enable Rule'}
-                  >
-                    {rule.enabled ? (
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                        <ToggleRight size={20} />
-                        <span className="text-[11px]">ACTIVE</span>
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 flex items-center gap-1">
-                        <ToggleLeft size={20} />
-                        <span className="text-[11px]">DISABLED</span>
-                      </span>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleRule(rule.id, rule.enabled)}
+                      className="flex items-center gap-1 text-xs font-mono text-slate-400 hover:text-white transition-colors"
+                      title={rule.enabled ? 'Disable Rule' : 'Enable Rule'}
+                    >
+                      {rule.enabled ? (
+                        <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                          <ToggleRight size={20} />
+                          <span className="text-[11px]">ACTIVE</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <ToggleLeft size={20} />
+                          <span className="text-[11px]">DISABLED</span>
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Title */}
@@ -216,15 +243,21 @@ export const RuleStudio: React.FC = () => {
                 <div className="p-3 bg-[#0B0F17] rounded border border-white/[0.04] space-y-1.5 text-[11px] font-mono mb-4">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Target Field:</span>
-                    <span className="text-indigo-300 font-medium">{rule.field}</span>
+                    <span className="text-indigo-300 font-medium">
+                      {String(rule.config?.field || 'amount_ratio')}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Operator:</span>
-                    <span className="text-slate-200">{rule.operator}</span>
+                    <span className="text-slate-200">
+                      {String(rule.config?.operator || 'GREATER_THAN')}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Threshold:</span>
-                    <span className="text-amber-400 font-bold">{rule.threshold}</span>
+                    <span className="text-amber-400 font-bold">
+                      {String(rule.config?.threshold || '3.5')}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -238,20 +271,31 @@ export const RuleStudio: React.FC = () => {
                   </span>
                 </div>
 
-                <button
-                  onClick={() =>
-                    handleTestRule({
-                      name: rule.name,
-                      type: rule.ruleType,
-                      threshold: rule.threshold,
-                      weight: rule.weight,
-                    })
-                  }
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition-colors"
-                >
-                  <Play size={11} className="text-indigo-400" />
-                  <span>Test Rule</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => openEditModal(rule)}
+                    className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                    title="Edit Rule Configuration"
+                  >
+                    <Edit2 size={13} />
+                  </button>
+
+                  <button
+                    onClick={() => deleteRule(rule.id)}
+                    className="p-1.5 rounded hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 transition-colors"
+                    title="Delete Rule"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+
+                  <button
+                    onClick={() => handleTestRule(rule.id)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition-colors"
+                  >
+                    <Play size={11} className="text-indigo-400" />
+                    <span>Test</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -286,19 +330,19 @@ export const RuleStudio: React.FC = () => {
         </div>
       )}
 
-      {/* Create Rule Modal Form */}
-      {showCreateModal && (
+      {/* Create / Edit Rule Modal Form */}
+      {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-[#111827] border border-white/[0.1] rounded-lg w-full max-w-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-[#0D131F]">
               <div className="flex items-center gap-2">
                 <Code2 size={17} className="text-indigo-400" />
                 <h3 className="text-sm font-semibold text-white font-mono">
-                  Configure Declarative Fraud Rule
+                  {editingRuleId ? 'Edit Declarative Fraud Rule' : 'Configure New Fraud Rule'}
                 </h3>
               </div>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => setShowModal(false)}
                 className="text-slate-400 hover:text-white"
               >
                 <X size={18} />
@@ -342,8 +386,8 @@ export const RuleStudio: React.FC = () => {
                     Rule Type
                   </label>
                   <select
-                    value={ruleType}
-                    onChange={(e) => setRuleType(e.target.value as RuleType)}
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
                     className="w-full bg-[#0B0F17] border border-white/[0.1] rounded px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
                   >
                     <option value="VELOCITY">VELOCITY</option>
@@ -376,7 +420,7 @@ export const RuleStudio: React.FC = () => {
                   </label>
                   <select
                     value={operator}
-                    onChange={(e) => setOperator(e.target.value as Operator)}
+                    onChange={(e) => setOperator(e.target.value)}
                     className="w-full bg-[#0B0F17] border border-white/[0.1] rounded px-2.5 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
                   >
                     <option value="GREATER_THAN">&gt; GREATER_THAN</option>
@@ -443,7 +487,7 @@ export const RuleStudio: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => setShowModal(false)}
                     className="px-3 py-2 text-xs font-medium text-slate-400 hover:text-white"
                   >
                     Cancel

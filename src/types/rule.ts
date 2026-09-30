@@ -1,36 +1,23 @@
-export type RuleType = 'VELOCITY' | 'AMOUNT' | 'LOCATION' | 'DEVICE' | 'BEHAVIORAL';
-
-export type Operator = 
-  | 'GREATER_THAN'
-  | 'LESS_THAN'
-  | 'EQUALS'
-  | 'NOT_EQUALS'
-  | 'EXCEEDS_SPEED'
-  | 'FREQUENCY_EXCEEDS'
-  | 'NEW_DEVICE'
-  | 'GEO_MISMATCH';
-
 export interface Rule {
   id: string;
   name: string;
   description: string;
+  type: string;
+  config: Record<string, unknown>;
   weight: number;
   enabled: boolean;
-  ruleType: RuleType;
-  field: string;
-  operator: Operator;
-  threshold: string | number;
+  version: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface RuleFormData {
   name: string;
-  ruleType: RuleType;
+  description: string;
+  type: string;
   field: string;
-  operator: Operator;
+  operator: string;
   threshold: string;
   weight: number;
   enabled: boolean;
-  description: string;
 }
