@@ -60,9 +60,9 @@ export const http = {
 
       // Handle non-2xx responses
       if (!response.ok) {
-        let errorData: any = null;
+        let errorData: { detail?: string | Array<{ loc?: (string | number)[]; msg?: string }>; message?: string; code?: string } | null = null;
         try {
-          errorData = await response.json();
+          errorData = (await response.json()) as typeof errorData;
         } catch {
           // Response body was not JSON
         }
@@ -77,7 +77,7 @@ export const http = {
           if (typeof errorData.detail === 'string') {
             errorMessage = errorData.detail;
           } else if (Array.isArray(errorData.detail)) {
-            errorMessage = errorData.detail.map((d: any) => `${d.loc?.join('.')}: ${d.msg}`).join(', ');
+            errorMessage = errorData.detail.map((d) => `${d.loc?.join('.')}: ${d.msg}`).join(', ');
           } else if (errorData.message) {
             errorMessage = errorData.message;
           }
