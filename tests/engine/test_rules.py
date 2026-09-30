@@ -90,6 +90,31 @@ class TestRules(unittest.TestCase):
         )
         context = {"previous_transaction": prev_tx}
         config = {"speed_limit_kmh": 900}
-        
         result = rule.evaluate(self.tx, context, config)
         self.assertFalse(result.triggered)
+
+    def test_amount_rule_zero_average(self):
+        rule = UnusualAmountRule()
+        config = {"mode": "relative", "multiplier": 5.0}
+        context = {"historical_average": 0.0}
+        result = rule.evaluate(self.tx, context, config)
+        self.assertFalse(result.triggered)
+        self.assertIn("zero historical average", result.evidence)
+        
+    def test_geography_rule_no_previous(self):
+        rule = ImpossibleGeographyRule()
+        result = rule.evaluate(self.tx, {}, {})
+        self.assertFalse(result.triggered)
+        self.assertIn("No previous transaction", result.evidence)
+        
+    def test_geography_rule_zero_time(self):
+        rule = ImpossibleGeographyRule()
+        # Same timestamp as self.tx
+        prev_tx = Transaction(
+            id="tx-prev", account_id="acc-123", amount=100.0, currency="INR", 
+            timestamp=self.now, latitude=28.7041, longitude=77.1025, 
+            location_name="Delhi", merchant="None", device_id="None", ip_address="None"
+        )
+        result = rule.evaluate(self.tx, {"previous_transaction": prev_tx}, {})
+        self.assertFalse(result.triggered)
+        self.assertIn("zero or negative", result.evidence)

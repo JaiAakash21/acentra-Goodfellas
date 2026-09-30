@@ -40,7 +40,7 @@ class TestFraudEngine(unittest.TestCase):
             "GEO_001": {"speed_limit_kmh": 900, "weight": 30}
         }
         
-        decision = self.engine.evaluate(self.tx, context, config)
+        decision = self.engine.evaluate(self.tx, config, context)
         
         self.assertEqual(decision.transaction_id, "tx-100")
         self.assertEqual(decision.risk_score, 90)
@@ -54,7 +54,7 @@ class TestFraudEngine(unittest.TestCase):
         config = {
             "AMOUNT_001": {"enabled": False}
         }
-        decision = self.engine.evaluate(self.tx, {}, config)
+        decision = self.engine.evaluate(self.tx, config, {})
         
         self.assertEqual(decision.risk_score, 0)
         self.assertEqual(decision.risk_level, RiskLevel.LOW)

@@ -10,15 +10,15 @@ logger = logging.getLogger(__name__)
 class GenericEvaluator:
     """Executes registered rules against a transaction."""
     
-    def evaluate(self, transaction: Transaction, rules: List[BaseRule], context: Dict[str, Any], rule_configs: Dict[str, Dict[str, Any]]) -> List[RuleResult]:
+    def evaluate(self, transaction: Transaction, active_rules: List[BaseRule], rules_config: Dict[str, Dict[str, Any]], context: Dict[str, Any]) -> List[RuleResult]:
         """
         Evaluate a transaction across a list of rules.
-        rule_configs contains configuration for each rule keyed by rule_id.
+        rules_config contains configuration for each rule keyed by rule_id.
         """
         results = []
         
-        for rule in rules:
-            config = rule_configs.get(rule.rule_id, {})
+        for rule in active_rules:
+            config = rules_config.get(rule.rule_id, {})
             # Skip if explicitly disabled
             if config.get("enabled", True) is False:
                 continue
@@ -28,13 +28,6 @@ class GenericEvaluator:
                 results.append(result)
             except Exception as e:
                 logger.error(f"Rule {rule.rule_id} failed during evaluation: {str(e)}")
-                results.append(RuleResult(
-                    rule_id=rule.rule_id,
-                    rule_name=rule.rule_name,
-                    triggered=False,
-                    score=0,
-                    evidence=f"Rule evaluation failed due to internal error: {str(e)}",
-                    transaction_id=transaction.id
-                ))
+                raise RuntimeError(f"Evaluation of rule {rule.rule_id} failed: {str(e)}") from e
                 
         return results

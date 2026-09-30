@@ -25,11 +25,20 @@ class FraudEngine:
             self.registry.register(UnusualAmountRule())
             self.registry.register(ImpossibleGeographyRule())
 
-    def evaluate(self, transaction: Transaction, context: Dict[str, Any], config: Dict[str, Any]) -> FraudDecision:
-        active_rule_ids = config.get("active_rules", [rule.rule_id for rule in self.registry.list_rules()])
+    def evaluate(self, transaction: Transaction, rules: Dict[str, Dict[str, Any]], context: Dict[str, Any]) -> FraudDecision:
+        """
+        Evaluate the transaction and return the final FraudDecision.
+        
+        Args:
+            transaction: The current transaction to evaluate.
+            rules: A dictionary where keys are rule IDs and values are dictionaries of rule-specific settings.
+                   Can also contain an "active_rules" list.
+            context: Supplemental history or data (e.g. 'history', 'previous_transaction', 'historical_average')
+        """
+        active_rule_ids = rules.get("active_rules", [rule.rule_id for rule in self.registry.list_rules()])
         active_rules = self.registry.get_active_rules(active_rule_ids)
         
-        rule_results = self.evaluator.evaluate(transaction, active_rules, context, config)
+        rule_results = self.evaluator.evaluate(transaction, active_rules, rules, context)
         
         risk_score, risk_level = self.aggregator.aggregate(rule_results)
         decision_status = self.aggregator.determine_decision(risk_level)

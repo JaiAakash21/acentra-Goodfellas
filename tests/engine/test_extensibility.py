@@ -51,7 +51,7 @@ class TestExtensibility(unittest.TestCase):
             "DEVICE_001": {"weight": 40}
         }
         
-        decision = engine.evaluate(tx, context, config)
+        decision = engine.evaluate(tx, config, context)
         
         custom_result = next((r for r in decision.rule_results if r.rule_id == "DEVICE_001"), None)
         self.assertIsNotNone(custom_result)

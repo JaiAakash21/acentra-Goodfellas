@@ -1,80 +1,123 @@
 # FraudLens Engine (Member 1 Integration Guide)
 
-This package contains the core Fraud Engine. It is completely independent of FastAPI, SQLAlchemy, and AWS.
+## 1. What FraudLens Member 1 Provides
+Member 1 provides the core, deterministic Fraud Decision Engine. It evaluates financial transactions against multiple independent fraud rules (Velocity, Amount, Geography) and produces an aggregated risk score and decision. The engine is entirely decoupled from databases, APIs, or specific frameworks.
 
-## Handoff for Member 2
-
-As Member 2, you will integrate this engine into the FastAPI layer. Here is how:
-
-### 1. Import the Engine
-```python
-from backend.app.engine.engine import FraudEngine
-from backend.app.engine.models import Transaction
-
-# Instantiate once at application startup
-fraud_engine = FraudEngine()
+## 2. Architecture
+```
+Transaction
+    ↓
+Rule Registry (Active Rules Loaded)
+    ↓
+Generic Evaluator (Executes Rules Independently)
+    ↓
+RuleResult[]
+    ↓
+Risk Aggregator
+    ↓
+FraudDecision
 ```
 
-### 2. Construct the Transaction and Context
-When an API request comes in, validate it with Pydantic, then convert it into the engine's `Transaction` domain model.
-
-Next, query your database to build the evaluation `context`. The engine expects the caller to provide history to avoid DB coupling.
-
+## 3. Exact engine.evaluate Signature
 ```python
-tx = Transaction(
-    id="uuid-from-db",
-    account_id=api_request.accountId,
-    amount=api_request.amount,
-    currency=api_request.currency,
-    timestamp=api_request.timestamp,
-    latitude=api_request.latitude,
-    longitude=api_request.longitude,
-    location_name=api_request.locationName,
-    merchant=api_request.merchant,
-    device_id=api_request.deviceId,
-    ip_address=api_request.ipAddress
+def evaluate(self, transaction: Transaction, rules: Dict[str, Dict[str, Any]], context: Dict[str, Any]) -> FraudDecision:
+```
+
+## 4. Transaction Input
+`transaction` must be an instance of `backend.app.engine.models.Transaction`. It perfectly mirrors the incoming API contract:
+```python
+Transaction(
+    id="...",
+    account_id="...",
+    amount=100.0,
+    currency="USD",
+    timestamp=datetime.now(timezone.utc),
+    latitude=40.7128,
+    longitude=-74.0060,
+    location_name="NY",
+    merchant="Store",
+    device_id="dev-123",
+    ip_address="192.168.1.1"
 )
+```
 
-# Fetch context from your repositories
-context = {
-    "history": [], # List of previous Transaction models for this account
-    "previous_transaction": None, # The single most recent Transaction model
-    "historical_average": 5000.0
-}
-
-# Configuration (eventually coming from Member 4's Rule Studio DB)
-config = {
+## 5. rules Configuration
+`rules` is the active/configured rule manifest supplied dynamically (expected to eventually come from Member 4's DB configurations).
+```python
+rules = {
+    "active_rules": ["VELOCITY_001", "AMOUNT_001", "GEO_001"],
     "VELOCITY_001": {"threshold": 5, "window_minutes": 10, "weight": 30},
     "AMOUNT_001": {"mode": "absolute", "threshold": 50000, "weight": 25},
     "GEO_001": {"speed_limit_kmh": 900, "weight": 30}
 }
 ```
 
-### 3. Evaluate the Transaction
+## 6. context Structure
+`context` provides external historical data supplied by Member 2 to prevent database coupling within the engine.
 ```python
-decision = fraud_engine.evaluate(tx, context, config)
+context = {
+    # List of previous Transaction models (unsorted is fine)
+    # The Velocity rule calculates based on these
+    "history": [Transaction(...), ...],
+    
+    # The single most recent Transaction model
+    # The Geography rule uses this to calculate speed
+    "previous_transaction": Transaction(...),
+    
+    # Historical average amount for the account (float)
+    # Used by the relative Amount rule
+    "historical_average": 5000.0
+}
 ```
 
-### 4. Construct the API Response
-The `decision` is a `FraudDecision` object. Map it to the frozen frontend contract:
-
+## 7. FraudDecision Output
+The engine returns a `FraudDecision` object:
 ```python
-# Create FraudFlag for DB/API
-fraud_flag = FraudFlag(
-    id="new-uuid",
-    transactionId=decision.transaction_id,
-    riskScore=decision.risk_score,
-    riskLevel=decision.risk_level.value,
-    status="PENDING_REVIEW" if decision.decision in ["REVIEW", "PRIORITY_REVIEW"] else "CLEARED",
-    triggeredRuleCount=sum(1 for r in decision.rule_results if r.triggered),
-    createdAt=datetime.utcnow()
-)
-
-# RuleResults are also available inside `decision.rule_results`.
+{
+    "transaction_id": "...",
+    "risk_score": 85,
+    "risk_level": <RiskLevel.CRITICAL>,
+    "decision": "PRIORITY_REVIEW",
+    "rule_results": [...] # List of RuleResult objects
+}
 ```
 
-## Example Scenarios
+## 8. RuleResult Mapping
+The internal `RuleResult` contains:
+`rule_id`, `rule_name`, `triggered`, `score`, `evidence`, `transaction_id`.
 
-- **NORMAL (Low Risk)**: No rules trigger. `risk_score` = 0. `risk_level` = "LOW".
-- **SUSPICIOUS (Medium/High)**: Velocity triggers. `risk_score` = 30. `risk_level` = "MEDIUM".
-- **HIGH RISK (Critical)**: Velocity, Amount, and Geo trigger. `risk_score` = 85. `risk_level` = "CRITICAL".
+**RuleResult.id Gap**: Member 1 produces the engine-level `RuleResult` without persistence identity. Member 2 may assign/persist the UUID/primary key `id` at the API/database boundary to perfectly match the Frontend Contract.
+
+## 9. Risk Levels
+The final aggregated score (capped 0-100) resolves to a Risk Level:
+- LOW: 0–29
+- MEDIUM: 30–59
+- HIGH: 60–79
+- CRITICAL: 80–100
+
+## 10. Decision Mapping
+- `LOW` → `APPROVE`
+- `MEDIUM` → `MONITOR`
+- `HIGH` → `REVIEW`
+- `CRITICAL` → `PRIORITY_REVIEW`
+
+## 11. Three Sample Scenarios
+### SCENARIO 1 — NORMAL
+- **Input**: Low amount, nearby geography, minimal history.
+- **Output**: 0 triggered rules, `risk_score` = 0, `risk_level` = LOW, `decision` = APPROVE.
+### SCENARIO 2 — SUSPICIOUS
+- **Input**: 6 transactions in 10 minutes.
+- **Output**: 1 triggered rule (VELOCITY_001), `risk_score` = 30, `risk_level` = MEDIUM, `decision` = MONITOR. Evidence: "6 transactions detected for account_id 'acc-123' within 10 minutes; configured threshold is 5."
+### SCENARIO 3 — CRITICAL
+- **Input**: Fast velocity, 100k amount (threshold 50k), impossible speed since previous tx.
+- **Output**: 3 triggered rules, `risk_score` = 85 (30+25+30), `risk_level` = CRITICAL, `decision` = PRIORITY_REVIEW. 3 explainable RuleResults.
+
+## 12. Timezone Assumption
+All `Transaction` timestamps and historical timestamps reaching Member 1 must be timezone-aware (e.g., `datetime.now(timezone.utc)`). The engine expects normalized UTC timestamps and does not silently convert naive ones.
+
+## 13. Error Behavior
+If an individual rule crashes due to bad data, the `GenericEvaluator` will explicitly raise a `RuntimeError` wrapped around the exception. It fails loudly so integration issues are highly debuggable.
+
+## 14. How to Run Tests
+From the project root:
+`python -m unittest discover -s tests`
