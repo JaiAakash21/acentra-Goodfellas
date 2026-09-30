@@ -9,6 +9,7 @@ import {
   Shield,
   Activity,
   CheckCircle,
+  PlusCircle,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -18,6 +19,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/transactions/new', label: 'Create Transaction', icon: PlusCircle },
     { to: '/reviews', label: 'Review Queue', icon: ShieldAlert, badge: '64' },
     { to: '/rules', label: 'Rule Studio', icon: Sliders },
     { to: '/simulator', label: 'Fraud Simulator', icon: Cpu },

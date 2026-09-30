@@ -26,3 +26,17 @@ export interface TransactionWithFraud extends Transaction {
   flagId: string;
 }
 
+export interface TransactionCreatePayload {
+  customer_id: string;
+  amount: number;
+  currency: string;
+  merchant?: string;
+  category?: string;
+  city?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  timestamp?: string;
+}
+
+

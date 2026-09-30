@@ -1,6 +1,6 @@
 import { http } from './http';
 import { config } from '../config/env';
-import type { Transaction, TransactionWithFraud } from '../types/transaction';
+import type { Transaction, TransactionWithFraud, TransactionCreatePayload } from '../types/transaction';
 import type { FraudFlag, RuleResult, AuditEvent, DashboardStats } from '../types/fraud';
 import type { Rule } from '../types/rule';
 import type { Review } from '../types/review';
@@ -1060,9 +1060,59 @@ export async function runSimulation(scenario: string) {
 }
 
 /**
+ * Submit and evaluate a new transaction via FastAPI backend
+ * Backend: POST /api/transactions
+ */
+export async function createTransaction(payload: TransactionCreatePayload): Promise<TransactionWithFraud> {
+  if (!config.useMockData) {
+    const detail = await http.post<any>('/api/transactions', payload);
+    const mapped = mapBackendTransaction(detail);
+    if (detail.rule_results) {
+      const canonicalId = String(detail.id);
+      ruleResultsState[canonicalId] = detail.rule_results.map((r: any, idx: number) => ({
+        id: `RES-${canonicalId}-${r.rule_id || idx}`,
+        transactionId: canonicalId,
+        ruleId: r.rule_id,
+        ruleName: r.rule_name || r.rule_id,
+        triggered: Boolean(r.triggered),
+        score: Number(r.score || 0),
+        evidence: typeof r.evidence === 'string' ? { description: r.evidence } : r.evidence || {},
+      }));
+    }
+    return mapped;
+  }
+
+  // Fallback in mock mode:
+  const newTx: TransactionWithFraud = {
+    id: `TX-${Date.now()}`,
+    accountId: payload.customer_id,
+    amount: payload.amount,
+    currency: payload.currency || 'INR',
+    timestamp: payload.timestamp || new Date().toISOString(),
+    latitude: payload.latitude || 13.0827,
+    longitude: payload.longitude || 80.2707,
+    locationName:
+      payload.city && payload.country
+        ? `${payload.city}, ${payload.country}`
+        : payload.city || 'Chennai, India',
+    merchant: payload.merchant || 'Standard Merchant',
+    deviceId: 'DEV-WEB-PORTAL',
+    ipAddress: '127.0.0.1',
+    riskScore: payload.amount > 50000 ? 55 : 0,
+    riskLevel: payload.amount > 50000 ? 'MEDIUM' : 'LOW',
+    status: payload.amount > 50000 ? 'PENDING_REVIEW' : 'CLEARED',
+    triggeredRuleCount: payload.amount > 50000 ? 1 : 0,
+    flagId: `FLAG-${Date.now()}`,
+  };
+  transactionsState.unshift(newTx);
+  return newTx;
+}
+
+/**
  * Composite API Service Object for backwards compatibility & clean namespace
  */
 export const apiService = {
+  createTransaction,
   getTransactions,
   getFraudFlags,
   getTransaction,
