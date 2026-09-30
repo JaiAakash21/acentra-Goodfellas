@@ -3,9 +3,15 @@ from typing import Literal
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.schemas import TransactionOut
-from app.services import seed_data
+try:
+    from app.db.session import get_db
+    from app.schemas import RuleResultOut, TransactionOut
+    from app.services import seed_data
+except ImportError:
+    from backend.app.db.session import get_db
+    from backend.app.schemas import RuleResultOut, TransactionOut
+    from backend.app.services import seed_data
+
 
 router = APIRouter(tags=["Demo"])
 

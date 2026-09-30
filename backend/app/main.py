@@ -1,11 +1,19 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# Ensure backend directory is in sys.path when running from repo root
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 
 from app import models  # noqa: F401  (registers tables on Base.metadata)
+
 from app.api import audit, dashboard, demo, health, reviews, rules, transactions
 from app.core.config import settings
 from app.db.base import Base

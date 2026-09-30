@@ -17,11 +17,34 @@ export const BackendNoticeBanner: React.FC<BackendNoticeBannerProps> = ({ isOffl
       </div>
       <div className="flex items-center gap-2 text-[11px]">
         <Database size={12} className="text-slate-400" />
-        <span className="text-amber-400 flex items-center gap-1 font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-          <span>{isOffline ? 'BACKEND OFFLINE — DEMO MODE' : 'MOCK PREVIEW (FASTAPI READY)'}</span>
+        <span
+          className={`flex items-center gap-1 font-semibold ${
+            !config.useMockData && !isOffline
+              ? 'text-emerald-400'
+              : isOffline
+              ? 'text-rose-400'
+              : 'text-amber-400'
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              !config.useMockData && !isOffline
+                ? 'bg-emerald-500 animate-pulse'
+                : isOffline
+                ? 'bg-rose-500'
+                : 'bg-amber-500 animate-pulse'
+            }`}
+          />
+          <span>
+            {!config.useMockData && !isOffline
+              ? 'LIVE FASTAPI MODE (CONNECTED)'
+              : isOffline
+              ? 'BACKEND OFFLINE — DEMO MODE'
+              : 'MOCK PREVIEW (FASTAPI READY)'}
+          </span>
         </span>
       </div>
     </div>
   );
 };
+
