@@ -3,5 +3,4 @@ uvicorn[standard]>=0.27
 pydantic-settings>=2.2
 sqlalchemy>=2.0
 psycopg2-binary>=2.9
-# Optional, only needed if you switch NOTIFICATION_PROVIDER to sns/ses:
-# boto3>=1.34
+boto3>=1.34

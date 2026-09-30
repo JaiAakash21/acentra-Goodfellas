@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # --- Demo ---
     auto_seed: bool = False
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "backend/.env"), extra="ignore")
 
 
 settings = Settings()
