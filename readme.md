@@ -1,5 +1,7 @@
 # FraudLens
 
+[![CI](https://github.com/JaiAakash21/acentra-Goodfellas/actions/workflows/ci.yml/badge.svg)](https://github.com/JaiAakash21/acentra-Goodfellas/actions/workflows/ci.yml) ![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+
 An explainable, configurable fraud decision and reviewer platform built for the Acentra Build to Care hackathon.
 
 ## Overview
@@ -62,7 +64,7 @@ Transaction → Rule Evaluation → Risk Score → Review Queue → Investigatio
 
 ### Backend
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 uvicorn backend.app.main:app --reload --port 8000
 ```
 - API Docs: `http://127.0.0.1:8000/docs`
