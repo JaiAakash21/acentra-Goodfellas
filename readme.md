@@ -84,3 +84,16 @@ npm run dev
 ## Team
 
 **Team Goodfellas** (Acentra Build to Care Hackathon)
+
+## Public sample-data demo
+
+The [GitHub Pages demo](https://jaiaakash21.github.io/acentra-Goodfellas/) runs the reviewer console with the repository's synthetic transaction data. It exercises the queue, investigation views, rule controls, and simulator in the browser. The URL uses hash navigation so case pages load on static hosting. The live FastAPI integration requires a separately hosted backend and is not part of this sample-data deployment.
+
+To reproduce the demo build:
+
+```bash
+npm ci
+VITE_PAGES_DEMO=true VITE_USE_MOCK=true npm run build -- --base=/acentra-Goodfellas/
+```
+
+Publish the resulting `dist` directory to the `gh-pages` branch and configure GitHub Pages to serve its root.

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/navigation/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ReviewQueue } from './pages/ReviewQueue';
@@ -8,9 +8,11 @@ import { RuleStudio } from './pages/RuleStudio';
 import { Simulator } from './pages/Simulator';
 import { CreateTransaction } from './pages/CreateTransaction';
 
+const Router = import.meta.env.VITE_PAGES_DEMO === 'true' ? HashRouter : BrowserRouter;
+
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
@@ -23,7 +25,7 @@ export const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 };
 
